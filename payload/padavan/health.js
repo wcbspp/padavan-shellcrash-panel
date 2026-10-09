@@ -63,16 +63,33 @@ function paintMonitor(){
  if(!nativeState)return;const s=nativeState,mb=n=>(Number(n||0)/1024).toFixed(1)+' MB';
  el('monitor-available').textContent=mb(s.available_kb);el('monitor-rss').textContent=mb(s.rss_kb);
  el('monitor-pressure').textContent=({normal:'正常',warning:'余量偏低',protect:'保护中'}[s.pressure]||'—');el('monitor-connections').textContent=String(s.conntrack||0);
+ const limits=s.memory_limits||{warning_mb:16,protect_mb:12,cleanup_mb:0};
+ el('memory-limits-summary').textContent='提醒 '+limits.warning_mb+' · 保护 '+limits.protect_mb+' · 清理 '+(limits.cleanup_mb?limits.cleanup_mb+' MB':'每分钟');
+ if(!memoryLimitsDirty){el('memory-warning').value=limits.warning_mb;el('memory-protect').value=limits.protect_mb;el('memory-trigger').value=limits.cleanup_mb}
+ el('memory-limits-save').disabled=manageBusy||s.active||s.available_kb<12288;
  const c=s.cleanup||{};if(c.time)el('cleanup-result').textContent=(c.manual?'手动':'自动')+'清理 · '+new Date(c.time*1000).toLocaleString('zh-CN',{hour12:false})+' · 删除 '+c.removed+' 个临时文件，裁剪 '+c.trimmed+' 份日志 · 文件减少 '+(c.file_bytes/1024).toFixed(1)+' KB · 可用 '+mb(c.before_kb)+' → '+mb(c.after_kb)+(c.file_bytes===0?' · 没有可清理文件':'');
 }
-let monitorLoading=false;
+let monitorLoading=false,memoryLimitsDirty=false;
 async function refreshMonitor(){if(monitorLoading||manageBusy)return;monitorLoading=true;el('monitor-refresh').disabled=true;try{await syncNative();await Promise.all([loadMemory(true),loadIncidents()])}catch(e){el('cleanup-result').textContent=e.message}finally{monitorLoading=false;el('monitor-refresh').disabled=false}}
 async function cleanupMemory(){
  if(manageBusy||nativeState?.active)return;pauseMeasurements();pauseSites();manageBusy=true;showService();
  const id=[...crypto.getRandomValues(new Uint8Array(4))].map(b=>b.toString(16).padStart(2,'0')).join('');
  el('cleanup-result').textContent='正在清理…';
- try{await control('sc-cleanup.sh',[id]);await waitJob(id,'done',30000,'cleanup-result');paintMonitor()}
+ try{await control('sc-cleanup.sh',[id]);await waitJob(id,'done',30000,'cleanup-result');await syncNative();await Promise.all([loadMemory(true),loadIncidents()]);paintMonitor()}
  catch(e){el('cleanup-result').textContent=e.message;note(e.message,true)}
  finally{manageBusy=false;showService()}
 }
 el('monitor-refresh').onclick=refreshMonitor;el('memory-cleanup').onclick=cleanupMemory;
+
+async function saveMemoryLimits(){
+ if(manageBusy||nativeState?.active)return;
+ const w=Number(el('memory-warning').value),p=Number(el('memory-protect').value),c=Number(el('memory-trigger').value);
+ if(![w,p,c].every(Number.isInteger)||p<12||w<=p||w>64||!(c===0||(c>=w&&c<=96))){el('memory-settings-result').textContent=words.memory_settings_invalid;return}
+ manageBusy=true;pauseMeasurements();pauseSites();showService();
+ const id=[...crypto.getRandomValues(new Uint8Array(4))].map(b=>b.toString(16).padStart(2,'0')).join('');
+ try{await control('sc-memcfg.sh',[id,'w'+w+'p'+p+'c'+c]);const s=await waitJob(id,'done',120000,'memory-settings-result');memoryLimitsDirty=false;el('memory-settings-result').textContent=words[decode(s.message_b64).trim()]||'设置已保存';await syncNative()}
+ catch(e){el('memory-settings-result').textContent=e.message}
+ finally{manageBusy=false;showService()}
+}
+for(const id of ['memory-warning','memory-protect','memory-trigger'])el(id).oninput=()=>{memoryLimitsDirty=true};
+el('memory-limits-form').onsubmit=e=>{e.preventDefault();saveMemoryLimits()};

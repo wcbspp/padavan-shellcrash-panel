@@ -43,9 +43,9 @@ for action in state logs memory incidents; do
 done
 printf '<%% nvram_dump("sc-admin/sub.raw",""); %%>\n' > /opt/share/www/custom/sc-subscription.asp
 ln -sf "$CRASHDIR/configs/fake_ip_filter.list" /opt/share/www/custom/sc-filter.asp
-for action in new put fetch apply start stop restart clear cleanup rules dns corecheck coreupdate mirrorsave mirrorsync; do
+for action in new put fetch apply start stop restart clear cleanup memcfg rules dns corecheck coreupdate mirrorsave mirrorsync; do
  case "$action" in
-  new|put|dns) argument_count=3; keep='set -- "$1" "$2"'; token_arg='$3';;
+  new|put|dns|memcfg) argument_count=3; keep='set -- "$1" "$2"'; token_arg='$3';;
   cleanup|fetch|apply|rules|corecheck|coreupdate|mirrorsave|mirrorsync) argument_count=2; keep='set -- "$1"'; token_arg='$2';;
   *) argument_count=1; keep='set --'; token_arg='$1';;
  esac

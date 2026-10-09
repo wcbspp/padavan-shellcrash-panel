@@ -1,6 +1,8 @@
 
 [ -z "$CRASHDIR" ] && CRASHDIR=$(cd "$(dirname "$0")"/.. && pwd)
 if [ "$1" = shellcrash ]; then
+ # A cron tick before the first boot start is not an unexpected core exit.
+ [ -f /tmp/ShellCrash/crash_start_time ] || [ -f /tmp/ShellCrash/shellcrash.pid ] || exit 0
  [ ! -d /tmp/padavan-panel-install.lock ] || exit 0
  [ -f "$CRASHDIR/configs/panel-disabled" ] && exit 0
  admin_owner=$(cat /tmp/sc-admin/operation.lock/owner 2>/dev/null)

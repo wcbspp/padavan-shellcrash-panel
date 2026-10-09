@@ -31,3 +31,9 @@ ssh admin@192.168.1.1 'sh /tmp/uninstall.sh /tmp/before-install.tar.gz'
 通过局域网登录路由器，查看 `/tmp/ShellCrash/debug.log`、`/tmp/ShellCrash/core.log`、系统日志和 `/tmp/sc-admin`。下载失败先检查时间同步、源地址和电脑 / 路由器网络；不要通过关闭证书校验来跳过错误。
 
 若断电、强杀安装进程或 Flash 写入失败，自动回滚不一定能完成。恢复配置后再次检查原服务是否正常。
+
+## 2026-10-10 重启验证
+
+修复了首次开机内核尚未启动时被定时守护误认为退出的情况。原记录 PID 为 0，没有 OOM 证据；增加首次启动标记判断后，整机第二次重启计数为 0。国内域名及 IP 直连、国外代理、Mix 模式 Fake IP 和真实地址例外均已复测。两项守护测试覆盖首次开机不恢复和启动后失踪仍恢复，合计 59 项离线检查通过。
+
+本机固件内置 ZeroTier 1.10.1，MIPS/uClibc，当前 ONLINE。更新需要兼容 Padavan 的编译版本或重编译固件，不能直接使用 AX5 ARMv7 Entware 软件包；本次没有更新 K2P ZeroTier。

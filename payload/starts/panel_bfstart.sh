@@ -17,6 +17,34 @@ if ! echo "$hash  /tmp/ShellCrash/ruleset/cn.srs" | sha256sum -c - >/dev/null 2>
  rm -f "$P/cn.new" "$P/ca.pem"
  [ "$found" = 1 ] || { logger -t ShellCrash 'CN domain rules unavailable; proxy start cancelled'; exit 1; }
 fi
+# Upgrade older panel profiles before ShellCrash splits the configuration.
+awk -f "$C/starts/route_normalize.awk" "$C/jsons/config.json" > "$P/normalized.json" || exit 1
+if [ "$(sha256sum "$P/normalized.json" | awk '{print $1}')" != "$(sha256sum "$C/jsons/config.json" | awk '{print $1}')" ]; then
+ binary=/tmp/ShellCrash/CrashCore
+ if [ ! -x "$binary" ]; then pid=$(pidof CrashCore | awk '{print $1}'); binary=/proc/$pid/exe; fi
+ if [ ! -x "$binary" ] && [ -s /tmp/ShellCrash/CrashCore.tar.gz ]; then
+  binary=/tmp/ShellCrash/CrashCore
+  tar -xOzf /tmp/ShellCrash/CrashCore.tar.gz CrashCore > "$binary" || exit 1
+  chmod 700 "$binary"
+ fi
+ [ -x "$binary" ] || exit 1
+ "$binary" check -D /tmp/ShellCrash -c "$P/normalized.json" > "$P/normalize-check.log" 2>&1 || exit 1
+ cp "$C/jsons/config.json" "$P/config-before-route.json" || exit 1
+ cp "$P/normalized.json" "$C/jsons/config.json" || exit 1
+ if ! /sbin/mtd_storage.sh save > "$P/normalize-save.log" 2>&1; then
+  cp "$P/config-before-route.json" "$C/jsons/config.json"; exit 1
+ fi
+fi
+rm -f "$P/normalized.json"
+# Old panel hooks duplicated the entire route as an incremental custom module.
+case "$(readlink "$C/jsons/route.json" 2>/dev/null)" in
+ /tmp/office-dns/route.json|/tmp/panel-dns/route.json) rm -f "$C/jsons/route.json";;
+esac
+# This exact legacy module contains only the now-canonical CN declaration.
+legacy_cn='{"route":{"rule_set":[{"type":"local","tag":"cn","format":"binary","path":"/tmp/ShellCrash/ruleset/cn.srs"}]}}'
+if [ -f "$C/jsons/route.json" ] && [ "$(tr -d ' \t\r\n' < "$C/jsons/route.json")" = "$legacy_cn" ]; then
+ rm -f "$C/jsons/route.json"
+fi
 awk -f "$C/starts/filter_compile.awk" "$C/configs/fake_ip_filter.list" > "$P/filter.json" || exit 1
 # Preserve LAN-only administration and warning-level bounded logs.
 for key in log experimental; do

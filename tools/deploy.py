@@ -23,11 +23,15 @@ def subscription_nodes(raw):
             raise ValueError('JSON 中没有 outbounds 节点')
         return nodes
     nodes = []
+    skipped_ssr = 0
     for line in text.splitlines():
         line = line.strip()
         if not line:
             continue
         u = urllib.parse.urlsplit(line)
+        if u.scheme == 'ssr':
+            skipped_ssr += 1
+            continue
         if u.scheme != 'anytls':
             raise ValueError('链接订阅只支持 AnyTLS；其他协议请使用 sing-box JSON')
         tag = urllib.parse.unquote(u.fragment)
@@ -44,6 +48,8 @@ def subscription_nodes(raw):
             password += ':' + urllib.parse.unquote(u.password)
         nodes.append({'type': 'anytls', 'tag': tag, 'server': u.hostname,
                       'server_port': port, 'password': password, 'tls': tls})
+    if skipped_ssr:
+        print(f'已跳过 {skipped_ssr} 个旧 SSR 条目。', file=sys.stderr)
     if not nodes:
         raise ValueError('订阅中没有节点')
     return nodes

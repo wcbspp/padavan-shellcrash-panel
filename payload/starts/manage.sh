@@ -21,7 +21,7 @@ lock(){
   mkdir "$D/operation.lock" 2>/dev/null || return 1
  fi
  echo $$ > "$D/operation.lock/owner"
- trap 'if [ "$act" = dns ]; then rm -rf "$D/dns"; fi; if [ "$act" = rules ]; then rm -rf "$D/rules"; fi; if [ "$act" = fetch ]; then rm -f "$D/ca.pem"; fi; if [ "$act" = apply ]; then rm -f "$D/previous.json" "$D/candidate.json" "$D/bounds.gz" "$D/bounds.json" "$D/check.json" "$D/upload.b64" "$D/upload.parts"; fi; rm -f "$D/operation.lock/owner"; rmdir "$D/operation.lock" 2>/dev/null' EXIT
+ trap 'if [ "$act" = dns ]; then rm -rf "$D/dns"; fi; if [ "$act" = rules ]; then rm -rf "$D/rules"; fi; if [ "$act" = fetch ] || [ "$act" = fetchconvert ]; then rm -f "$D/ca.pem"; fi; if [ "$act" = apply ]; then rm -f "$D/previous.json" "$D/candidate.json" "$D/bounds.gz" "$D/bounds.json" "$D/check.json" "$D/upload.b64" "$D/upload.parts"; fi; rm -f "$D/operation.lock/owner"; rmdir "$D/operation.lock" 2>/dev/null' EXIT
 }
 valid_id(){ printf '%s' "$1" | grep -Eq '^[a-f0-9]{8}$'; }
 status(){
@@ -92,7 +92,7 @@ save_safe(){
 }
 fail(){ phase error "$1"; event "$1"; }
 case "$act" in
- fetch|apply|rules|dns|coreupdate|mirrorsync|mirrorsave)
+ fetch|fetchconvert|apply|rules|dns|coreupdate|mirrorsync|mirrorsave)
   . "$C/starts/resource_health.sh"; resource_read
   if [ "$rh_pressure" = protect ]; then
    owner_live && exit 1
@@ -149,7 +149,7 @@ case "$act" in
   lock || exit 1
   phase clearing clearing_logs
   # Keep system OOM evidence and the separate recovery counter.
-  for f in "$D/events.log" /tmp/ShellCrash/core.log /tmp/ShellCrash/ShellCrash.log "$D/fetch-error" "$D/worker.log" "$D/logs.out"; do
+  for f in "$D/events.log" "$D/subscription-tool.log" /tmp/ShellCrash/core.log /tmp/ShellCrash/ShellCrash.log "$D/fetch-error" "$D/worker.log" "$D/logs.out"; do
    [ ! -f "$f" ] || : > "$f"
   done
   event 'Logs cleared'; phase done logs_cleared;;
@@ -159,6 +159,7 @@ case "$act" in
   printf '\n=== Proxy ===\n'; tail -65 /tmp/ShellCrash/core.log 2>/dev/null
   printf '\n=== ShellCrash ===\n'; tail -20 /tmp/ShellCrash/ShellCrash.log 2>/dev/null
   printf '\n=== Subscription download ===\n'; tail -5 "$D/fetch-error" 2>/dev/null
+  printf '\n=== ShellCrash subscription ===\n'; tail -30 "$D/subscription-tool.log" 2>/dev/null
   printf '\n=== Last operation ===\n'; tail -20 "$D/worker.log" 2>/dev/null;;
  new)
   valid_id "$id" || exit 1
@@ -177,7 +178,7 @@ case "$act" in
   seq=$(printf '%s' "$chunk" | cut -c 1-4); part=$(printf '%s' "$chunk" | cut -c 5-)
   # Short indexed records can be replayed safely; assembly discards duplicates.
   printf '%s %s\n' "$seq" "$part" >> "$D/upload.parts";;
- fetch)
+ fetch|fetchconvert)
   [ "$(cat "$D/phase" 2>/dev/null)" = downloaded ] && [ "$id" = "$(cat "$D/id" 2>/dev/null)" ] && exit 0
   valid_id "$id" && [ "$id" = "$(cat "$D/id" 2>/dev/null)" ] && [ "$(cat "$D/kind")" = source ] || exit 1
   lock || exit 1
@@ -188,17 +189,26 @@ case "$act" in
   case "$url" in https://*|http://*) :;; *) fail invalid_subscription_url; exit 1;; esac
   printf '%s' "$url" | grep -q '[[:space:]]' && { fail invalid_subscription_url; exit 1; }
   printf '%s' "$url" | base64 | tr -d '\n' > "$D/candidate.url.b64"
-  # TLS verification remains enabled; neither the URL nor credentials enter logs.
-  cat /etc/ssl/certs/*.crt "$C/configs/subscription-ca.pem" > "$D/ca.pem"
-  if ! curl -4 --cacert "$D/ca.pem" --noproxy '*' -fsS --connect-timeout 10 --max-time 25 --max-filesize 524288 "$url" -o "$D/sub.raw" 2> "$D/fetch-error"; then
-   if [ -n "$(pidof CrashCore)" ]; then
-    event 'Direct subscription download failed; retrying through active proxy'
-    if ! curl -4 --cacert "$D/ca.pem" --noproxy '' --proxy http://${PANEL_LAN_IP}:7890 -fsS --connect-timeout 10 --max-time 60 --max-filesize 524288 "$url" -o "$D/sub.raw" 2>> "$D/fetch-error"; then
-     fail subscription_download_failed; rm -f "$D/sub.raw"; exit 1
+  printf '%s' "$url" > "$D/native-source"
+  method=direct;[ "$act" != fetchconvert ] || method=convert
+  if "$C/starts/subscription_tool.sh" k2p "$method";then
+   event 'Subscription retrieved through ShellCrash'
+  elif [ "$method" = direct ];then
+   event 'ShellCrash direct retrieval failed; trying previous direct reader'
+   # TLS verification remains enabled; neither the URL nor credentials enter logs.
+   cat /etc/ssl/certs/*.crt "$C/configs/subscription-ca.pem" > "$D/ca.pem"
+   if ! curl -4 --cacert "$D/ca.pem" --noproxy '*' -fsS --connect-timeout 10 --max-time 25 --max-filesize 524288 "$url" -o "$D/sub.raw" 2> "$D/fetch-error"; then
+    if [ -n "$(pidof CrashCore)" ]; then
+      event 'Direct subscription download failed; retrying through active proxy'
+      if ! curl -4 --cacert "$D/ca.pem" --noproxy '' --proxy http://${PANEL_LAN_IP}:7890 -fsS --connect-timeout 10 --max-time 20 --max-filesize 524288 "$url" -o "$D/sub.raw" 2>> "$D/fetch-error"; then
+       fail subscription_download_failed; rm -f "$D/sub.raw"; exit 1
+      fi
+    else
+      fail subscription_download_failed; rm -f "$D/sub.raw"; exit 1
     fi
-   else
-    fail subscription_download_failed; rm -f "$D/sub.raw"; exit 1
    fi
+  else
+   fail subscription_download_failed;rm -f "$D/sub.raw";exit 1
   fi
   [ -s "$D/sub.raw" ] || { fail empty_subscription; exit 1; }
   phase downloaded subscription_downloaded; event 'Subscription downloaded; active configuration unchanged';;

@@ -1,4 +1,4 @@
-# Padavan ShellCrash Panel
+# K2P / Padavan · ShellCrash 可视化管理面板
 
 把 ShellCrash 接进 Padavan 后台：切节点、更新订阅、改 DNS、看日志，都可以在网页里操作。
 
@@ -113,3 +113,9 @@ GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版�
 开机只恢复已安装内核版本，不查询新版本。K2P 默认内核包位于内存，重启需下载；有可用外部存储时可配置持久化 archive。配置仍保存在 Storage。镜像上传失败单独提示待同步，可手动重试，已验证的内核不会仅因同步失败而撤回。
 
 验证与限制见[变更记录](CHANGELOG.md)。当前正式工具仍为 1.9.4release，新正式版替换及失败回退通过离线夹具验证。
+
+## ShellCrash 订阅与保护机制
+
+配置页可选 ShellCrash 直接读取或工具订阅转换。转换采用 crash 中选定的服务，订阅链接会发送给该服务；失败不自动切换转换服务器。直接读取失败保留原读取方式兜底。旧 SSR 条目跳过并显示数量，其他未支持的链接格式提示使用转换或 sing-box JSON。
+
+订阅先在临时目录生成，通过内核校验后再替换；失败保留或恢复当前配置。内存阈值、安全清理、备份回退、异常与恢复记录继续保留。启停通过 ShellCrash 和 Padavan 启动适配执行，并核对实际进程及接口状态。

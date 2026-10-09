@@ -107,6 +107,12 @@ class DeployTests(unittest.TestCase):
   self.assertFalse(plain[0]['tls']['insecure'])
  def test_unsupported_link_rejected(self):
   with self.assertRaises(ValueError):self.deploy.subscription_nodes(b'trojan://fixture@proxy.example.com#demo')
+ def test_mixed_legacy_ssr_keeps_anytls_nodes(self):
+  nodes=self.deploy.subscription_nodes(b'anytls://fixture@proxy.example.com:443#HongKong01\nssr://legacy-fixture')
+  self.assertEqual(len(nodes),1);self.assertEqual(nodes[0]['type'],'anytls')
+ def test_legacy_only_subscription_cannot_make_empty_configuration(self):
+  import base64
+  with self.assertRaises(ValueError):self.deploy.subscription_nodes(base64.b64encode(b'ssr://legacy-fixture'))
  def test_snapshot_does_not_extract_paths(self):
   result=self.deploy.read_snapshot(self.snapshot());self.assertIn('chinadns/chnroute.txt',result)
   buffer=io.BytesIO()

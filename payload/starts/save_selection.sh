@@ -14,7 +14,7 @@ trap 'rmdir /tmp/shellcrash-save.lock 2>/dev/null' EXIT
 . "$CRASHDIR/libs/get_config.sh"
 . "$CRASHDIR/libs/check_cmd.sh"
 . "$CRASHDIR/libs/web_save.sh"
-curl -fsS --connect-timeout 3 --max-time 5 -H "Authorization: Bearer $secret" "http://${PANEL_LAN_IP}:${db_port}/proxies" | grep -q proxy-main || exit 0
+curl -fsS --connect-timeout 3 --max-time 5 -H "Authorization: Bearer $secret" "http://${PANEL_LAN_IP}:${db_port}/proxies" | grep -Fq "\"$PANEL_MAIN_GROUP\"" || exit 0
 before=$(sha256sum "$CRASHDIR/configs/web_save" 2>/dev/null | awk '{print $1}')
 web_save
 after=$(sha256sum "$CRASHDIR/configs/web_save" 2>/dev/null | awk '{print $1}')

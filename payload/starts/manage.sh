@@ -49,12 +49,15 @@ status(){
  mirror_last_b64=$(cat "$C/configs/mirror.last" 2>/dev/null | base64 | tr -d '\n')
  mirror_check='{}'; [ ! -s "$D/mirror-check.json" ] || mirror_check=$(cat "$D/mirror-check.json")
  mirror_ready=false; [ ! -s "$C/configs/mirror_key" ] || mirror_ready=true
+ tool_version=$(tr -d '\r\n' < "$C/version");printf '%s' "$tool_version" | grep -Eq '^1\.[0-9]+\.[0-9]+(release|beta[0-9]+)$' || tool_version=unknown
+ tool_check='{}';[ ! -s "$D/tool-check.json" ] || tool_check=$(cat "$D/tool-check.json")
+ printf '{"main_group":"%s","tool_version":"%s","tool_check":%s,"local_archive":false,"mirror_pending_b64":"%s",' "$PANEL_MAIN_GROUP" "$tool_version" "$tool_check" "$(cat "$C/configs/mirror.pending" 2>/dev/null | base64 | tr -d '\n')"
  core_check='{}'; [ ! -s "$D/core-check.json" ] || core_check=$(cat "$D/core-check.json")
  rules_count=$(head -1 "$C/configs/rules.meta" 2>/dev/null); case "$rules_count" in ''|*[!0-9]*) rules_count=4305;; esac
  dns_mode=$(sed -n 's/^dns_mod=//p' "$C/configs/ShellCrash.cfg" | head -1); case "$dns_mode" in mix|fake-ip|redir_host) :;; *) dns_mode=unknown;; esac
  rules_date=$(sed -n '2p' "$C/configs/rules.meta" 2>/dev/null | base64 | tr -d '\n')
  cleanup='{}'; [ ! -s "$D/cleanup.json" ] || cleanup=$(cat "$D/cleanup.json")
- printf '{"memory_limits":{"warning_mb":%s,"protect_mb":%s,"cleanup_mb":%s},"cleanup":%s,"mirror_base_b64":"%s","mirror_target_b64":"%s","mirror_last_b64":"%s","mirror_ready":%s,"mirror_check":%s,"dns_mode":"%s","rules_count":%s,"rules_date_b64":"%s","running":%s,"enabled":%s,"rss_kb":%s,"free_kb":%s,"recoveries":%s,"active":%s,"phase":"%s","message_b64":"%s","url_b64":"%s","id":"%s","core_version":"%s","core_sha":"%s","core_blob":"%s","core_check":%s,"available_kb":%s,"pressure":"%s","shmem_kb":%s,"slab_kb":%s,"tcp_kb":%s,"conntrack":%s}\n' "$rh_warning_mb" "$rh_protect_mb" "$rh_cleanup_mb" "$cleanup" "$mirror_base_b64" "$mirror_target_b64" "$mirror_last_b64" "$mirror_ready" "$mirror_check" "$dns_mode" "$rules_count" "$rules_date" "$running" "$mode" "${rss:-0}" "${mem:-0}" "$recoveries" "$active" "$ph" "$msg" "$url" "$nonce" "$core_version" "$core_sha" "$core_blob" "$core_check" "$rh_available" "$rh_pressure" "$rh_shmem" "$rh_slab" "$rh_tcp" "$rh_conn"
+ printf '"memory_limits":{"warning_mb":%s,"protect_mb":%s,"cleanup_mb":%s},"cleanup":%s,"mirror_base_b64":"%s","mirror_target_b64":"%s","mirror_last_b64":"%s","mirror_ready":%s,"mirror_check":%s,"dns_mode":"%s","rules_count":%s,"rules_date_b64":"%s","running":%s,"enabled":%s,"rss_kb":%s,"free_kb":%s,"recoveries":%s,"active":%s,"phase":"%s","message_b64":"%s","url_b64":"%s","id":"%s","core_version":"%s","core_sha":"%s","core_blob":"%s","core_check":%s,"available_kb":%s,"pressure":"%s","shmem_kb":%s,"slab_kb":%s,"tcp_kb":%s,"conntrack":%s}\n' "$rh_warning_mb" "$rh_protect_mb" "$rh_cleanup_mb" "$cleanup" "$mirror_base_b64" "$mirror_target_b64" "$mirror_last_b64" "$mirror_ready" "$mirror_check" "$dns_mode" "$rules_count" "$rules_date" "$running" "$mode" "${rss:-0}" "${mem:-0}" "$recoveries" "$active" "$ph" "$msg" "$url" "$nonce" "$core_version" "$core_sha" "$core_blob" "$core_check" "$rh_available" "$rh_pressure" "$rh_shmem" "$rh_slab" "$rh_tcp" "$rh_conn"
 }
 trim_logs(){
  . "$C/starts/resource_health.sh"
@@ -121,6 +124,12 @@ case "$act" in
   lock || exit 1
   echo "$id" > "$D/id"
   . "$C/starts/mirror_update.sh";;
+ toolcheck|toolupdate)
+  valid_id "$id" || exit 1
+  lock || exit 1
+  echo "$id" > "$D/id"
+  phase working updating_tool_release
+  if SC_TOOL_JOB=1 "$C/starts/tool_update.sh" k2p "$( [ "$act" = toolcheck ] && echo check || echo update )" >> "$D/worker.log" 2>&1;then phase done tool_updated;else fail tool_update_rejected_previous_kept;fi;;
  corecheck|coreupdate)
   valid_id "$id" || exit 1
   lock || exit 1
@@ -225,7 +234,7 @@ case "$act" in
   if [ "$was_running" = 1 ]; then stop_core || { fail service_stop_failed; exit 1; }; fi
   if [ ! -s /tmp/ShellCrash/CrashCore.tar.gz ]; then "$C/starts/download_core.sh" >> "$D/worker.log" 2>&1 || { fail core_download_failed; exit 1; }; fi
   # Only outbounds change; avoid parsing the unchanged large DNS/CN tables twice.
-  { printf '{"outbounds":'; cat "$D/bounds.json"; printf ',"route":{"final":"proxy-main"}}\n'; } > "$D/check.json"
+  { printf '{"outbounds":'; cat "$D/bounds.json"; printf ',"route":{"final":"%s"}}\n' "$PANEL_MAIN_GROUP"; } > "$D/check.json"
   if ! tar -zxf /tmp/ShellCrash/CrashCore.tar.gz -C /tmp/ShellCrash || ! GOMEMLIMIT=12MiB GOGC=25 /tmp/ShellCrash/CrashCore check -c "$D/check.json" >> "$D/worker.log" 2>&1; then
    rm -f /tmp/ShellCrash/CrashCore; [ "$was_running" = 0 ] || start_core
    fail configuration_check_failed_previous_kept; exit 1

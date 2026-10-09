@@ -6,6 +6,11 @@ mkdir -p /tmp/ShellCrash
  . "$C/starts/core_release.sh"
  release="$C/configs/core-installed.info"
  release_valid "$release" || { logger -t ShellCrash 'Installed core metadata invalid; refusing download'; exit 1; }
+ # An optional external persistent cache is verified against the installed manifest.
+ local_archive=$(sed -n 's/^archive=//p' "$C/configs/core-cache.conf" 2>/dev/null | head -1)
+ if [ -n "$local_archive" ] && printf '%s' "$local_archive" | grep -Eq '^/[A-Za-z0-9/._-]+$' && ! printf '%s' "$local_archive" | grep -q '\.\.' && [ -s "$local_archive" ];then
+  if printf '%s  %s\n' "$(release_get sha256 "$release")" "$local_archive" | sha256sum -c - >/dev/null 2>&1;then cp "$local_archive" /tmp/ShellCrash/CrashCore.tar.gz;fi
+ fi
  if [ -s /tmp/ShellCrash/CrashCore.tar.gz ]; then
   printf '%s  %s\n' "$(release_get sha256 "$release")" /tmp/ShellCrash/CrashCore.tar.gz | sha256sum -c - >/dev/null 2>&1 && exit 0
   rm -f /tmp/ShellCrash/CrashCore.tar.gz

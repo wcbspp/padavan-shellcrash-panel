@@ -94,6 +94,7 @@ fi
 # Keep the router-specific cfg and upstream framework; overlay only published files.
 cp -R "$BASE/payload/starts/." "$C/starts/" || exit 1
 cp -R "$BASE/payload/libs/." "$C/libs/" || exit 1
+cp -R "$BASE/payload/menus/." "$C/menus/" || exit 1
 mkdir -p "$C/padavan" "$C/ui" "$C/task"
 cp -R "$BASE/payload/padavan/." "$C/padavan/"
 cp -R "$BASE/payload/ui/." "$C/ui/"

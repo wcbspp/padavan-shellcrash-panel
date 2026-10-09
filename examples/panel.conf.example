@@ -5,3 +5,6 @@
 
 # Optional existing domestic IPv4 list to import on first start (missing path is skipped).
 # PANEL_CN_IP_FILE='/etc/storage/custom/chnroute.txt'
+
+# Existing deployments may retain a different root selector name.
+# PANEL_MAIN_GROUP='proxy-main'

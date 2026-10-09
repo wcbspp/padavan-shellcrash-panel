@@ -68,7 +68,14 @@ reported=$(/tmp/ShellCrash/CrashCore version 2>/dev/null | head -1)
 if ! GOMEMLIMIT=8MiB GOGC=10 /tmp/ShellCrash/CrashCore check -D /tmp/ShellCrash -C /tmp/ShellCrash/jsons >> "$D/worker.log" 2>&1; then rollback; fail core_config_incompatible; exit 1; fi
 printf 'sha256=%s\nbinary_size=%s\n' "$(sha256sum "$r/candidate.tgz" | awk '{print $1}')" "$binary" >> "$release"
 . "$C/starts/mirror_lib.sh"
-if ! mirror_required_put core "$r/candidate.tgz" || ! mirror_required_put info "$release"; then rollback; fail mirror_sync_failed_previous_kept; exit 1; fi
+# A mirror failure does not invalidate the verified pinned public package.
+if [ -n "$(mirror_get target)" ];then
+ if mirror_put core "$r/candidate.tgz" && mirror_put info "$release";then rm -f "$C/configs/mirror.pending";else printf '%s\n' "Core $next_ver synchronization pending" > "$C/configs/mirror.pending";event 'New core verified; mirror upload pending';fi
+fi
+local_archive=$(sed -n 's/^archive=//p' "$C/configs/core-cache.conf" 2>/dev/null | head -1)
+if [ -n "$local_archive" ] && printf '%s' "$local_archive" | grep -Eq '^/[A-Za-z0-9/._-]+$' && ! printf '%s' "$local_archive" | grep -q '\.\.';then
+ if cp "$r/candidate.tgz" "$local_archive.new" && printf '%s  %s\n' "$(release_get sha256 "$release")" "$local_archive.new" | sha256sum -c - >/dev/null 2>&1;then mv "$local_archive.new" "$local_archive";else rm -f "$local_archive.new";event 'Optional local archive cache write failed';fi
+fi
 rm -f /tmp/ShellCrash/CrashCore
 mv "$r/candidate.tgz" /tmp/ShellCrash/CrashCore.tar.gz
 cp "$release" "$current"

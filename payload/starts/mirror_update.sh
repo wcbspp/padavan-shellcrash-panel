@@ -53,4 +53,5 @@ mirror_put info "$C/configs/core-installed.info" && mirror_put rules "$RULES_FIL
 [ -z "$(pidof CrashCore)" ] || rm -f /tmp/ShellCrash/CrashCore.tar.gz
 save_safe || { fail persistent_save_failed; exit 1; }
 mirror_probe
+rm -f "$C/configs/mirror.pending"
 phase done mirror_synced

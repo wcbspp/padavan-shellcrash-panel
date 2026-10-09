@@ -26,7 +26,7 @@ done
 mode=$(sed -n 's/^dns_mod=//p' "$C/configs/ShellCrash.cfg" | head -1)
 case "$mode" in mix|fake-ip|redir_host) :;; *) mode=mix;; esac
 {
- printf '{"dns":{"servers":[{"type":"udp","tag":"dns-direct","server":"223.5.5.5"},{"type":"tcp","tag":"dns-proxy","server":"8.8.8.8","detour":"proxy-main"},{"type":"udp","tag":"dns_resolver","server":"223.5.5.5"}'
+ printf '{"dns":{"servers":[{"type":"udp","tag":"dns-direct","server":"223.5.5.5"},{"type":"tcp","tag":"dns-proxy","server":"8.8.8.8","detour":"%s"},{"type":"udp","tag":"dns_resolver","server":"223.5.5.5"}' "$PANEL_MAIN_GROUP"
  [ "$mode" = redir_host ] || printf ',{"type":"fakeip","tag":"dns-fake","inet4_range":"198.18.0.0/15"}'
  printf '],"rules":[{"domain":["localhost"],"domain_suffix":["lan","local","localdomain","home.arpa"],"server":"dns-direct"},'
  [ "$mode" = fake-ip ] || printf '{"rule_set":["cn"],"server":"dns-direct"},'

@@ -51,7 +51,7 @@ el('memory-refresh').onclick=()=>loadMemory(true);
 el('core-check').onclick=()=>kernelAction('corecheck');el('core-update').onclick=()=>kernelAction('coreupdate');
 
 async function loadIncidents(){
- try{const raw=await nativeRead('incidents'),box=el('incident-list');box.replaceChildren();const rows=raw.trim().split('\n').map(x=>x.split('|')).filter(r=>r.length===7).reverse();
+ try{const raw=await nativeRead('incidents'),box=el('incident-list');box.replaceChildren();const rows=raw.trim().split('\n').map(x=>x.split('|')).filter(r=>r.length>=7&&r.length<=8).reverse();
  el('incident-summary').textContent=rows.length?'最近 '+rows.length+' 条记录':'暂无异常记录';
  for(const r of rows){const card=document.createElement('div');card.className='incident-row';const title=document.createElement('strong');title.textContent=r[0]+' · '+({oom:'内存不足，被系统终止',legacy_oom:'旧插件更新触发内存不足',unknown:'进程退出，原因未确认'}[r[2]]||'进程退出');const detail=document.createElement('p');detail.className='small-note';detail.textContent='检测 '+r[1]+' · '+(r[6]==='restored'?'已自动恢复':r[6]==='failed'?'恢复失败':'恢复中')+(Number(r[3])?' · PID '+r[3]:'')+(Number(r[4])?' · 退出时内核 '+(Number(r[4])/1024).toFixed(1)+' MB':'')+(Number(r[5])?' · 最近采样空闲 '+(Number(r[5])/1024).toFixed(1)+' MB':'');card.append(title,detail);box.append(card)}
  }catch(e){el('incident-summary').textContent='读取失败：'+e.message}
@@ -93,3 +93,18 @@ async function saveMemoryLimits(){
 }
 for(const id of ['memory-warning','memory-protect','memory-trigger'])el(id).oninput=()=>{memoryLimitsDirty=true};
 el('memory-limits-form').onsubmit=e=>{e.preventDefault();saveMemoryLimits()};
+
+function paintTool(){
+ if(!nativeState)return;const s=nativeState,t=s.tool_check||{};
+ el('tool-current').textContent='已安装 '+(s.tool_version||'—')+' · 官方正式版 '+(t.available?t.version:t.checked?'查询失败':'待查询');
+ el('tool-check').disabled=el('tool-update').disabled=manageBusy||s.active||s.pressure==='protect';
+}
+async function toolAction(action){
+ if(manageBusy||nativeState?.active)return;pauseMeasurements();pauseSites();manageBusy=true;showService();
+ const before=nativeState?.tool_version;const id=[...crypto.getRandomValues(new Uint8Array(4))].map(b=>b.toString(16).padStart(2,'0')).join('');
+ el('tool-message').textContent=action==='toolcheck'?'正在查询官方 stable 正式版…':'正在检查版本和适配，保留代理运行…';
+ try{await control('sc-'+action+'.sh',[id]);const s=await waitJob(id,'done',180000,'tool-message');el('tool-message').textContent=action==='toolcheck'?'官方正式版查询完成':s.tool_version===before?'已安装可用正式版；代理未重启':'工具更新完成；代理未重启'}
+ catch(e){el('tool-message').textContent=e.message}
+ finally{manageBusy=false;await syncNative().catch(()=>{});showService();paintTool()}
+}
+el('tool-check').onclick=()=>toolAction('toolcheck');el('tool-update').onclick=()=>toolAction('toolupdate');

@@ -10,7 +10,7 @@
 
 ### 1. 下载并解压到电脑
 
-[下载 v1.0.2 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.2/padavan-shellcrash-panel-1.0.2.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。
+[下载 v1.1.0 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.1.0/padavan-shellcrash-panel-1.1.0.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。
 
 路由器先开启 SSH，在原「科学上网」页面关闭 SSR 的运行开关。电脑连到这台路由器的局域网。
 
@@ -36,7 +36,7 @@ python3 tools/deploy.py
 
 ### 3. 打开路由器后台
 
-登录后点击 **高级设置 → ShellCrash**。如果没看到菜单，刷新浏览器缓存。安装时输入的订阅链接会保存在面板中，以后点「订阅 → 更新」即可。
+登录后点击 **高级设置 → ShellCrash**。如果没看到菜单，刷新浏览器缓存。安装时输入的订阅链接会保存在面板中，以后点「配置 → 更新订阅」即可。
 
 安装前备份保存在你运行命令的文件夹，文件名以 `shellcrash-before-` 开头。请留好，恢复方法见 [备份与卸载](docs/RECOVERY.md)。
 
@@ -48,7 +48,7 @@ python3 tools/deploy.py
 - 管理面板、后端脚本、开机启动和异常恢复脚本。
 - 电脑安装助手、备份和卸载工具。
 
-如果只需要基础包，可以下载 [ShellCrash 1.9.4 原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.2/ShellCrash-1.9.4.tar.gz)。它来自 [官方 1.9.4 发布](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)，源码、来源与校验值保留在 `vendor/`。
+如果只需要基础包，可以下载 [ShellCrash 1.9.4 原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.1.0/ShellCrash-1.9.4.tar.gz)。它来自 [官方 1.9.4 发布](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)，源码、来源与校验值保留在 `vendor/`。
 
 sing-box 内核不打进基础包，安装和重启时按下载源获取；自定义镜像设置见下方说明。
 
@@ -105,3 +105,11 @@ GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版�
 国内 IP 默认表随安装包提供，不依赖旧 SSR 的 chinadns 目录。首次导入已有规则，此后使用 ShellCrash 自己的持久化文件；前台可手动更新，失败保留原表。
 
 版本变更见 [CHANGELOG.md](CHANGELOG.md)
+
+## 1.1.0 更新
+
+节点顺序采样三次，显示成功样本的最短时间；首个请求可能包含握手。配置页可检查和更新官方 stable 正式版 ShellCrash 工具。工具更新保留本项目适配及运行配置，不重启其他服务；同版不替换，上游适配依赖发生变化时拒绝覆盖。
+
+开机只恢复已安装内核版本，不查询新版本。K2P 默认内核包位于内存，重启需下载；有可用外部存储时可配置持久化 archive。配置仍保存在 Storage。镜像上传失败单独提示待同步，可手动重试，已验证的内核不会仅因同步失败而撤回。
+
+验证与限制见[变更记录](CHANGELOG.md)。当前正式工具仍为 1.9.4release，新正式版替换及失败回退通过离线夹具验证。

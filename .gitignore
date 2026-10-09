@@ -1,0 +1,15 @@
+dist/
+.secrets/
+*.local
+__pycache__/
+.DS_Store
+*.log
+*.enc
+*.zip
+*.tar.gz
+!examples/
+
+# Local subscription/profile inputs must never be committed.
+*.private*
+nodes.json
+panel-secret*

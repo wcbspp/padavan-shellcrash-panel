@@ -1,0 +1,60 @@
+// Browser-rendered memory history; samples live in RAM, not flash.
+let memoryLoading=false,memoryLast=0;
+function paintKernel(){
+ if(!nativeState)return;const s=nativeState,k=s.core_check||{},blocked=manageBusy||s.active;
+ el('core-current').textContent='sing-box mini '+(s.core_version||version||'—');
+ el('core-check').disabled=blocked;
+ const hasUpdate=k.available&&k.fits&&k.git_blob!==s.core_blob;
+ el('core-update').disabled=blocked||!hasUpdate||!running;
+ el('core-summary').textContent=k.available?(hasUpdate?'源中可用 '+k.version+' · '+(k.size/1048576).toFixed(1)+' MB':(!k.fits?'源中程序超过轻量限制，保留当前内核':k.fixed?'固定源 · 程序与当前内核一致':'当前下载源的程序与已安装内核一致'))+(k.checked?' · '+new Date(k.checked*1000).toLocaleTimeString('zh-CN',{hour12:false}):''):k.checked?'检查未完成，当前内核继续运行':'沿用 ShellCrash 配置的下载源，检查不会下载程序';
+}
+async function kernelAction(action){
+ if(manageBusy||nativeState?.active)return;
+ if(action==='coreupdate'&&el('core-update').disabled)return;
+ pauseMeasurements();pauseSites();manageBusy=true;showService();
+ const id=[...crypto.getRandomValues(new Uint8Array(4))].map(b=>b.toString(16).padStart(2,'0')).join('');
+ el('core-message').textContent=action==='corecheck'?'正在检查 ShellCrash 当前下载源…':'正在更新内核，代理会短暂中断…';
+ try{await control('sc-'+action+'.sh',[id]);const s=await waitJob(id,'done',360000,'core-message');if(running&&action==='coreupdate')await refresh();el('core-message').textContent=words[decode(s.message_b64).trim()]||'操作完成'}
+ catch(e){el('core-message').textContent=e.message}
+ finally{manageBusy=false;await syncNative().catch(()=>{});showService();if(running)render()}
+}
+function memoryDraw(rows){
+ const svg=el('memory-chart'),ns='http://www.w3.org/2000/svg';svg.replaceChildren();
+ const make=(tag,attrs,text)=>{const n=document.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,String(v));if(text)n.textContent=text;svg.append(n);return n};
+ if(rows.length<2){make('text',{x:340,y:65,'text-anchor':'middle',fill:'#8b96a6','font-size':12},'积累更多采样后显示趋势');return}
+ const left=35,right=672,top=8,bottom=108,min=rows[0][1],span=Math.max(60,rows.at(-1)[1]-min);
+ const max=Math.max(10,Math.ceil(Math.max(...rows.flatMap(r=>[r[3],r[4]]))/1024/10)*10);
+ const x=r=>left+(r[1]-min)/span*(right-left),y=v=>bottom-v/1024/max*(bottom-top);
+ for(let i=0;i<=4;i++){const v=max*i/4,yy=bottom-v/max*(bottom-top);make('line',{x1:left,x2:right,y1:yy,y2:yy,stroke:'#edf0f5'});make('text',{x:left-5,y:yy+3,'text-anchor':'end',fill:'#93a0b1','font-size':9},String(v))}
+ for(const [col,color]of [[3,'#087ec2'],[4,'#15926a']]){let d='',lastPid=null;for(const r of rows){const valid=col===4||r[2]>0;if(!valid){lastPid=null;continue}const move=!d||lastPid===null||(col===3&&lastPid!==r[2]);d+=(move?'M':'L')+x(r).toFixed(1)+' '+y(r[col]).toFixed(1)+' ';lastPid=r[2]}make('path',{d,fill:'none',stroke:color,'stroke-width':1.8,'stroke-linejoin':'round'})}
+ for(const r of [rows[0],rows.at(-1)])make('text',{x:x(r),y:125,'text-anchor':r===rows[0]?'start':'end',fill:'#93a0b1','font-size':9},new Date(r[0]*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false}));
+}
+async function loadMemory(force=false){
+ if(memoryLoading||(!force&&Date.now()-memoryLast<30000))return;memoryLoading=true;
+ try{const text=await nativeRead('memory');const rows=text.trim().split('\n').map(s=>s.split(',').map(Number)).filter(r=>r.length===6&&r.every(Number.isFinite)&&r[1]>=0&&r[3]>=0&&r[4]>=0).slice(-1441);
+  memoryLast=Date.now();memoryDraw(rows);
+  if(!rows.length){el('memory-summary').textContent='等待第一次采样，每分钟记录一次';return}
+  const latest=rows.at(-1),span=Math.max(0,latest[1]-rows[0][1]);let start=rows.length-1;while(start>0&&rows[start-1][2]===latest[2])start--;
+  const segment=rows.slice(start).filter(r=>r[2]>0),duration=segment.length?(latest[1]-segment[0][1])/60:0;
+  const peak=segment.length?Math.max(...segment.map(r=>r[3])):0;
+  const avg=items=>items.reduce((n,r)=>n+r[3],0)/Math.max(1,items.length)/1024;
+  const first=avg(segment.slice(0,5)),last=avg(segment.slice(-5)),delta=last-first;
+  const windowMin=Math.floor(span/60),observed=windowMin<60?windowMin+' 分钟':(windowMin/60).toFixed(1)+' 小时';
+  el('memory-summary').textContent='已记录 '+observed+' · '+rows.length+' 次采样 · 当前进程峰值 '+(peak/1024).toFixed(1)+' MB';
+  el('memory-trend').textContent=!latest[2]?'代理已停止':'当前 '+(latest[3]/1024).toFixed(1)+' MB · 本段变化 '+(delta>=0?'+':'')+delta.toFixed(1)+' MB';
+ }catch(e){el('memory-summary').textContent='读取趋势失败：'+e.message}
+ finally{memoryLoading=false}
+}
+el('memory-open').onclick=()=>{showTab('logs');el('memory-details').open=true;loadMemory(true)};
+el('memory-details').ontoggle=()=>{if(el('memory-details').open)loadMemory(true)};
+el('memory-refresh').onclick=()=>loadMemory(true);
+el('core-check').onclick=()=>kernelAction('corecheck');el('core-update').onclick=()=>kernelAction('coreupdate');
+
+async function loadIncidents(){
+ try{const raw=await nativeRead('incidents'),box=el('incident-list');box.replaceChildren();const rows=raw.trim().split('\n').map(x=>x.split('|')).filter(r=>r.length===7).reverse();
+ el('incident-summary').textContent=rows.length?'最近 '+rows.length+' 条记录':'暂无异常记录';
+ for(const r of rows){const card=document.createElement('div');card.className='incident-row';const title=document.createElement('strong');title.textContent=r[0]+' · '+({oom:'内存不足，被系统终止',legacy_oom:'旧插件更新触发内存不足',unknown:'进程退出，原因未确认'}[r[2]]||'进程退出');const detail=document.createElement('p');detail.className='small-note';detail.textContent='检测 '+r[1]+' · '+(r[6]==='restored'?'已自动恢复':r[6]==='failed'?'恢复失败':'恢复中')+(Number(r[3])?' · PID '+r[3]:'')+(Number(r[4])?' · 退出时内核 '+(Number(r[4])/1024).toFixed(1)+' MB':'')+(Number(r[5])?' · 最近采样空闲 '+(Number(r[5])/1024).toFixed(1)+' MB':'');card.append(title,detail);box.append(card)}
+ }catch(e){el('incident-summary').textContent='读取失败：'+e.message}
+}
+el('incident-open').onclick=()=>{showTab('logs');el('incident-details').open=true;loadIncidents()};
+el('incident-refresh').onclick=loadIncidents;

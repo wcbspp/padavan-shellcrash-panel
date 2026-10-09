@@ -6,6 +6,8 @@
 
 ## 安装
 
+需要配套底层固件时，见 [K2P 16 MB 固件下载与验证](docs/FIRMWARE.md)。四个版本分别提供，包含本机正在使用的完整版和 K2P-USB 版；本批仅适用于 16 MB 闪存。
+
 ### 1. 下载并解压到电脑
 
 [下载 v1.0.2 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.2/padavan-shellcrash-panel-1.0.2.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。

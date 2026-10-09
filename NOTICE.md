@@ -9,3 +9,5 @@
 页面品牌标识只用于对应网站的连通性检测入口，不表示合作或授权。百度、哔哩哔哩、淘宝、YouTube、GitHub、OpenAI 标识来源于 Simple Icons 11.0.0（https://github.com/simple-icons/simple-icons/tree/11.0.0/icons ，CC0，商标权另行保留）；Google 四色 G 按品牌样式绘制；腾讯 QQ 标识来源 https://qzonestyle.gtimg.cn/qzone/qzact/act/external/tiqq/logo.png 。各商标属于相应权利人，公开使用前应核对适用的品牌要求。
 
 完整后台截图来自 Padavan / N56U 项目界面，版权标识保留；节点与运行状态为演示数据。截图用于展示本面板的菜单位置，不包含 Padavan 固件代码或静态资源。
+
+另行发布的 K2P 固件附件来自使用者提供的历史原文件，本项目未重新编译。固件来源、验证范围及校验值见 docs/FIRMWARE.md 和 docs/FIRMWARE_MANIFEST.json；编译者和对应源码提交尚未提供。面板许可证不代表对这些第三方固件重新授权。

@@ -7,6 +7,8 @@ __pycache__/
 *.enc
 *.zip
 *.tar.gz
+*.trx
+*.bin
 !examples/
 
 # Local subscription/profile inputs must never be committed.

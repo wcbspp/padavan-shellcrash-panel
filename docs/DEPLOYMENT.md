@@ -53,11 +53,6 @@ python3 tools/deploy.py --check-only
 
 打开路由器后台的「ShellCrash」。切换节点后等页面保存完成；订阅、DNS 名单和国内 IP 规则都可以在各自标签页更新。保存成功的配置会保留到下次开机。
 
-路由器重启要重新下载内核，不会覆盖已保存的订阅和 DNS 设置。默认走 ShellCrash 的公共源，也可以配自己的服务器：
-
-- 程序镜像：`/etc/storage/ShellCrash/configs/core_mirrors.list`，每行一个 URL，按顺序尝试。
-- 国内域名规则镜像：`/etc/storage/ShellCrash/configs/panel.conf` 中的 `PANEL_CN_MIRROR`。
-
-镜像里的文件必须匹配已有校验值。示例在 `examples/`；内核更新按钮仍沿用 ShellCrash 配置的下载源。
+路由器重启会重新下载内核，不会覆盖已保存的订阅和 DNS 设置。自定义下载镜像不是必填；公共源直连不稳定时，可设置自己的服务器。下载顺序、文件要求和操作步骤见 [自定义下载镜像](MIRRORS.md)。
 
 [手动安装](MANUAL_INSTALL.md) · [备份与卸载](RECOVERY.md) · [运行方式与限制](ARCHITECTURE.md)

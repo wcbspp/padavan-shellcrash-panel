@@ -9,7 +9,9 @@ hash=3b83cff9903602f27c3a6737c775f742253a24a60165ff4d9b9ef28ac22bc140
 if ! echo "$hash  /tmp/ShellCrash/ruleset/cn.srs" | sha256sum -c - >/dev/null 2>&1; then
  { for cert in /etc/ssl/certs/*.crt; do [ ! -f "$cert" ] || cat "$cert"; done; cat "$C/configs/subscription-ca.pem"; } > "$P/ca.pem"
  found=0
- for u in ${PANEL_CN_MIRROR:-} https://raw.githubusercontent.com/DustinWin/ruleset_geodata/877462de3ab7fe81ad4b8bd0f7d4a8fd9df363fe/cn.srs https://testingcf.jsdelivr.net/gh/DustinWin/ruleset_geodata@877462de3ab7fe81ad4b8bd0f7d4a8fd9df363fe/cn.srs; do
+ . "$C/starts/mirror_lib.sh"
+ base=$(mirror_base); cn_custom=''; [ -z "$base" ] || cn_custom="$base/cn-$hash.srs"
+ for u in $cn_custom ${PANEL_CN_MIRROR:-} https://raw.githubusercontent.com/DustinWin/ruleset_geodata/877462de3ab7fe81ad4b8bd0f7d4a8fd9df363fe/cn.srs https://testingcf.jsdelivr.net/gh/DustinWin/ruleset_geodata@877462de3ab7fe81ad4b8bd0f7d4a8fd9df363fe/cn.srs; do
   if curl --cacert "$P/ca.pem" --noproxy '*' -fsSL --connect-timeout 10 --max-time 40 --max-filesize 1048576 "$u" -o "$P/cn.new" && echo "$hash  $P/cn.new" | sha256sum -c - >/dev/null 2>&1; then mv "$P/cn.new" /tmp/ShellCrash/ruleset/cn.srs; found=1; break; fi
  done
  rm -f "$P/cn.new" "$P/ca.pem"

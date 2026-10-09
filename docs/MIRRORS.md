@@ -1,68 +1,68 @@
-# 自定义下载镜像
+# 自定义镜像
 
-K2P 的程序放在 RAM 里，路由器断电后就没有了。每次开机需要下载内核压缩包和国内域名规则，再启动代理；订阅、节点选择和 DNS 设置保存在 Storage 中。
+打开路由器后台 → 高级设置 → ShellCrash → 订阅 → 自定义镜像。
 
-自定义镜像不是必填。公共下载源能直连时，可以直接用默认设置。直连不稳定时，把文件放到自己的服务器，开机先从那里下载。
+- **镜像目录地址**：例如 `https://downloads.example.com/shellcrash-core/objects`，不要填单个文件地址。
+- **SSH 上传目标**：例如 `scmirror@server.example.com:22`。留空时只使用下载镜像，不自动上传。
+- **保存地址**：保存到路由器 Storage，重启继续使用。不会重启代理。
+- **同步当前文件**：把当前内核、国内 IP 表和固定版本域名库上传，并从下载地址读回校验。
+- **源版本**：显示运行内核、ShellCrash 公共适配源、镜像源的内核版本。点击内核“检查更新”刷新两处源信息。即使版本号相同，文件校验值不同也显示不一致。
 
-## 下载顺序
+## 下载与更新
 
-1. 按 `core_mirrors.list` 从上到下尝试自定义内核镜像。
-2. 下载失败或 SHA256 不匹配，尝试 ShellCrash 公共源。
-3. 国内域名规则优先使用 `PANEL_CN_MIRROR`，失败或校验不符再尝试公共规则源。
+开机时，内核和 `cn.srs` 优先从镜像直连下载；失败再尝试公共源。内核按已保存的 SHA256 下载，无法用旧文件替换新版本。节点、DNS 和国内 IP 表保存在 Storage，重启不重新下载配置或 IP 表。
 
-这些启动下载都走直连，不依赖已经运行的代理。镜像地址应在代理启动前就能访问，不能依赖这台路由器的代理才能打开。
+“更新内核”向 ShellCrash 已配置的适配源检查最新版本，程序包优先从镜像下载；没有对应文件时从原源下载。新程序通过版本、配置校验后，先上传镜像并验证下载，再保存安装记录。上传失败则回退原内核。
 
-如果所有来源都失败，代理启动不了，但保存的配置还在。不要用关闭校验或随便换一个程序文件的办法跳过错误。
+“更新国内 IP 规则”从原来的 `ispip.clang.cn` 获取最新表，校验后先同步镜像，再应用并保存。不能只向镜像检查最新 IP 表，否则服务器未更新时会一直停在旧规则。`cn.srs` 仍使用已测试的固定版本；此按钮不更新域名库。
 
-## 服务器上放什么
+只配置下载地址而不填上传目标时，更新可正常执行，但需要自行维护服务器文件。界面会显示“上传未配置”。首次部署上传密钥后，建议先点击“同步当前文件”。
 
-只需一个能直连下载文件的 HTTP / HTTPS 静态地址，例如：
+镜像上传走已有 SSH 端口，不新增监听服务，不需要在页面保存服务器密码。订阅、节点密码、完整配置和备份不会上传到公开镜像目录。
 
-```text
-https://downloads.example.com/singbox-mini-1.12.13-mipsle.tar.gz
-https://downloads.example.com/cn.srs
-```
+## 文件布局
 
-内核压缩包从路由器 `configs/core-installed.info` 的 `url` 下载，核对其中的 `sha256`。必须是同一份文件；同版本的其他构建、解压后重新打包的文件，校验值也可能不同。
-
-`cn.srs` 是可选规则镜像，来源和 SHA256 记录在 `starts/panel_bfstart.sh`。只配内核镜像时，国内域名规则仍从公共源下载；如果希望开机完全优先走自己的服务器，这个文件也要配置。
-
-镜像不需要放订阅、密码、节点配置或备份。配置备份另外保存，不能放到公开下载目录里。
-
-## 路由器上怎么设置
-
-目前网页没有镜像设置入口，需要首次通过 SSH 编辑。以下示例地址要换成自己的实际下载地址。
-
-### 内核镜像
-
-编辑 `/etc/storage/ShellCrash/configs/core_mirrors.list`，每行一个地址：
+接收器使用内容校验值命名，旧文件不会冒充新版：
 
 ```text
-https://downloads.example.com/singbox-mini-1.12.13-mipsle.tar.gz
+core-<SHA256>.tar.gz          内核程序包
+blob-<Git blob SHA1>.tar.gz   同一个程序包的硬链接，供适配源检查后下载
+cn-<SHA256>.srs              固定国内域名库
+rules-<SHA256>.txt           国内 IPv4 表
+info-<SHA256>.txt            内核版本、架构与校验信息
+core-info.txt               最近成功同步的内核信息
 ```
 
-可填多个镜像，优先的放第一行；不填就走公共源。内核文件名可以自定义，但更新版本后要检查地址和文件是否对应。
+`core-info.txt` 用于界面显示。启动始终使用路由器已保存的版本和 SHA256，不依赖这份可变信息选择版本。
 
-### 国内域名规则镜像
+## 首次配置上传服务
 
-编辑 `/etc/storage/ShellCrash/configs/panel.conf`，加入：
+服务器需要 Python 3.6+ 和已有的 HTTP/HTTPS 文件服务。接收器不启动常驻进程。
+
+1. 复制项目的 `tools/mirror_receive.py` 到服务器 `/usr/local/libexec/shellcrash-mirror-receive.py`，由 root 所有，普通用户不可修改。
+2. 创建专用用户 `scmirror`，给它一个公开下载目录的写权限；其他服务器目录不授予写权限。
+3. 在路由器生成密钥：
 
 ```sh
-PANEL_CN_MIRROR='https://downloads.example.com/cn.srs'
+umask 077
+dropbearkey -t rsa -s 2048 -f /etc/storage/ShellCrash/configs/mirror_key
+dropbearkey -y -f /etc/storage/ShellCrash/configs/mirror_key
 ```
 
-### 保存到 Flash
+4. 将输出的 `ssh-rsa …` 公钥加入服务器该用户的 `authorized_keys`。这一行必须有以下前缀，后面接公钥：
 
-改完后在路由器 SSH 中执行：
-
-```sh
-sh /etc/storage/ShellCrash/starts/save_storage.sh
+```text
+command="SC_MIRROR_ROOT=/srv/shellcrash-mirror /usr/bin/python3 /usr/local/libexec/shellcrash-mirror-receive.py",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-rsa …
 ```
 
-看到保存成功或 Storage 未变化的提示后再重启，否则编辑可能没有固化。
+5. 通过可信的服务器管理连接取得 SSH 主机公钥，在路由器 `/etc/storage/ShellCrash/configs/mirror_known_hosts` 保存一行 `服务器域名 ssh-ed25519 公钥内容`。Dropbear 使用不带端口的主机名；不要附注释。不能关闭主机指纹检查。若系统全局禁用公钥认证，只为 `scmirror` 启用；不要修改其他用户的认证设置。
+6. 用现有网站服务公开上述文件，禁止上传、目录索引和以点开头的文件。接收器未完成的文件以 `.incoming-` 开头，不应被下载。
+7. 在面板保存镜像目录和 SSH 目标，再点击“同步当前文件”。文件会经 SSH 上传、从公开下载地址校验，成功后保存 Storage。
 
-## 更新内核后
+HTTP 镜像不传输密码，但下载必须匹配 SHA256。更换服务器时同时维护下载地址、SSH 目标和主机指纹；页面不会自动信任新的服务器。
 
-网页的内核更新按钮仍使用 ShellCrash 配置的更新源，自定义镜像负责开机下载。更新成功后，把新版本对应的压缩包同步到镜像服务器，并确认镜像地址正确。
+## 兼容旧配置
 
-如果镜像仍是旧文件，开机时会因校验不符跳过它，改走公共源，不会偷偷启动旧内核。
+已有 `configs/core_mirrors.list` 和 `PANEL_CN_MIRROR` 继续作为备用下载地址。面板维护的新目录优先于这些旧地址。下载目录留空不会删除旧地址；若希望完全使用公共源，应同时清理旧配置。
+
+内核和域名库放在 RAM，断电后重新下载；ShellCrash 本体、面板、配置保存在 Storage。镜像不是配置备份，私有备份另存受保护目录。

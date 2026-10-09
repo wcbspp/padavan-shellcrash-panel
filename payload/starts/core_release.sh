@@ -80,9 +80,11 @@ release_download(){
  mkdir -p "$D/core-check"; core_cacerts
  size=$(release_get archive_size "$f"); expected_sha=$(release_get sha256 "$f"); expected_blob=$(release_get git_blob "$f")
  rm -f "$dest"
- for field in url fallback1 fallback2; do
-  u=$(release_get "$field" "$f")
-  case "$u" in https://*.jsdelivr.net/gh/juewuy/ShellCrash@*|https://raw.githubusercontent.com/juewuy/ShellCrash/*) :;; *) continue;; esac
+ . "$C/starts/mirror_lib.sh"
+ mirror_url=$(mirror_core_url "$f")
+ for field in mirror url fallback1 fallback2; do
+  if [ "$field" = mirror ]; then u=$mirror_url; else u=$(release_get "$field" "$f"); fi
+  case "$u" in http://*|https://*) :;; *) continue;; esac
   if curl -4 --cacert "$D/core-check/ca.pem" --noproxy '*' -fsSL --connect-timeout 8 --max-time 120 --max-filesize "$size" "$u" -o "$dest" && [ "$(stat -c %s "$dest")" -eq "$size" ]; then
    actual_blob=$({ printf 'blob %s\000' "$size"; cat "$dest"; } | sha1sum | awk '{print $1}')
    actual_sha=$(sha256sum "$dest" | awk '{print $1}')

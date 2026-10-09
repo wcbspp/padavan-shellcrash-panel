@@ -14,7 +14,12 @@ rm -f "$R/raw" "$R/ca.pem"
 count=$(wc -l < "$R/new.txt" | tr -d ' ')
 hash=$(sha256sum "$R/new.txt" | awk '{print $1}')
 if [ "$hash" = "$(sha256sum /etc/storage/chinadns/chnroute.txt | awk '{print $1}')" ]; then
- phase done rules_unchanged; event 'Domestic IP rules already current; no restart or flash write'; return 0
+ . "$C/starts/mirror_lib.sh"
+ if [ -n "$(mirror_get target)" ]; then
+  mirror_required_put rules "$R/new.txt" || { fail mirror_sync_failed_previous_kept; return 1; }
+  save_safe || { fail persistent_save_failed; return 1; }
+ fi
+ phase done rules_unchanged; event 'Domestic IP rules already current; no restart'; return 0
 fi
 # Replace exactly one embedded table, keeping DNS, nodes and other routing intact.
 awk 'FNR==NR{a=a sep "\"" $0 "\"";sep=",";next}
@@ -22,6 +27,8 @@ awk 'FNR==NR{a=a sep "\"" $0 "\"";sep=",";next}
  {print} END{if(bad||found!=1)exit 1}' "$R/new.txt" "$C/jsons/config.json" > "$R/candidate.json" || { fail configuration_template_missing; return 1; }
 if ! cp "$C/jsons/config.json" "$R/previous.json" || ! cp /etc/storage/chinadns/chnroute.txt "$R/previous.txt" || ! cp "$C/configs/rules.meta" "$R/previous.meta"; then fail rules_backup_failed; return 1; fi
 was_running=0; [ -z "$(pidof CrashCore)" ] || was_running=1
+. "$C/starts/mirror_lib.sh"
+if ! mirror_required_put rules "$R/new.txt"; then fail mirror_sync_failed_previous_kept; return 1; fi
 phase applying validating_rules
 if [ "$was_running" = 1 ]; then stop_core || { fail service_stop_failed; return 1; }; fi
 # Check only the changed table with the same core, after freeing the old process.

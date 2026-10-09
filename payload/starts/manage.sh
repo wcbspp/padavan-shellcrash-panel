@@ -43,11 +43,17 @@ status(){
  printf '%s' "$core_sha" | grep -Eq '^[a-f0-9]{64}$' || core_sha=''
  core_blob=$(sed -n 's/^git_blob=//p' "$C/configs/core-installed.info" 2>/dev/null)
  printf '%s' "$core_blob" | grep -Eq '^[a-f0-9]{40}$' || core_blob=''
+ . "$C/starts/mirror_lib.sh"
+ mirror_base_b64=$(mirror_base | base64 | tr -d '\n')
+ mirror_target_b64=$(mirror_get target | base64 | tr -d '\n')
+ mirror_last_b64=$(cat "$C/configs/mirror.last" 2>/dev/null | base64 | tr -d '\n')
+ mirror_check='{}'; [ ! -s "$D/mirror-check.json" ] || mirror_check=$(cat "$D/mirror-check.json")
+ mirror_ready=false; [ ! -s "$C/configs/mirror_key" ] || mirror_ready=true
  core_check='{}'; [ ! -s "$D/core-check.json" ] || core_check=$(cat "$D/core-check.json")
  rules_count=$(head -1 "$C/configs/rules.meta" 2>/dev/null); case "$rules_count" in ''|*[!0-9]*) rules_count=4305;; esac
  dns_mode=$(sed -n 's/^dns_mod=//p' "$C/configs/ShellCrash.cfg" | head -1); case "$dns_mode" in mix|fake-ip|redir_host) :;; *) dns_mode=unknown;; esac
  rules_date=$(sed -n '2p' "$C/configs/rules.meta" 2>/dev/null | base64 | tr -d '\n')
- printf '{"dns_mode":"%s","rules_count":%s,"rules_date_b64":"%s","running":%s,"enabled":%s,"rss_kb":%s,"free_kb":%s,"recoveries":%s,"active":%s,"phase":"%s","message_b64":"%s","url_b64":"%s","id":"%s","core_version":"%s","core_sha":"%s","core_blob":"%s","core_check":%s,"available_kb":%s,"pressure":"%s","shmem_kb":%s,"slab_kb":%s,"tcp_kb":%s,"conntrack":%s}\n' "$dns_mode" "$rules_count" "$rules_date" "$running" "$mode" "${rss:-0}" "${mem:-0}" "$recoveries" "$active" "$ph" "$msg" "$url" "$nonce" "$core_version" "$core_sha" "$core_blob" "$core_check" "$rh_available" "$rh_pressure" "$rh_shmem" "$rh_slab" "$rh_tcp" "$rh_conn"
+ printf '{"mirror_base_b64":"%s","mirror_target_b64":"%s","mirror_last_b64":"%s","mirror_ready":%s,"mirror_check":%s,"dns_mode":"%s","rules_count":%s,"rules_date_b64":"%s","running":%s,"enabled":%s,"rss_kb":%s,"free_kb":%s,"recoveries":%s,"active":%s,"phase":"%s","message_b64":"%s","url_b64":"%s","id":"%s","core_version":"%s","core_sha":"%s","core_blob":"%s","core_check":%s,"available_kb":%s,"pressure":"%s","shmem_kb":%s,"slab_kb":%s,"tcp_kb":%s,"conntrack":%s}\n' "$mirror_base_b64" "$mirror_target_b64" "$mirror_last_b64" "$mirror_ready" "$mirror_check" "$dns_mode" "$rules_count" "$rules_date" "$running" "$mode" "${rss:-0}" "${mem:-0}" "$recoveries" "$active" "$ph" "$msg" "$url" "$nonce" "$core_version" "$core_sha" "$core_blob" "$core_check" "$rh_available" "$rh_pressure" "$rh_shmem" "$rh_slab" "$rh_tcp" "$rh_conn"
  trim_logs
 }
 trim_logs(){
@@ -87,7 +93,7 @@ save_safe(){
 }
 fail(){ phase error "$1"; event "$1"; }
 case "$act" in
- fetch|apply|rules|dns|coreupdate)
+ fetch|apply|rules|dns|coreupdate|mirrorsync|mirrorsave)
   . "$C/starts/resource_health.sh"; resource_read
   if [ "$rh_pressure" = protect ]; then
    owner_live && exit 1
@@ -100,6 +106,12 @@ case "$act" in
  status) status;;
  incidents) [ ! -f "$D/incidents.log" ] || tail -100 "$D/incidents.log";;
  memory) [ ! -f "$D/memory.csv" ] || cat "$D/memory.csv";;
+ mirrorsave|mirrorsync)
+  valid_id "$id" || exit 1
+  if [ "$act" = mirrorsave ]; then [ "$id" = "$(cat "$D/id" 2>/dev/null)" ] || exit 1; fi
+  lock || exit 1
+  echo "$id" > "$D/id"
+  . "$C/starts/mirror_update.sh";;
  corecheck|coreupdate)
   valid_id "$id" || exit 1
   lock || exit 1
@@ -133,7 +145,7 @@ case "$act" in
  new)
   valid_id "$id" || exit 1
   owner_live && exit 1
-  kind=$3; case "$kind" in source|bounds|filter) :;; *) exit 1;; esac
+  kind=$3; case "$kind" in source|bounds|filter|mirror) :;; *) exit 1;; esac
   [ "$(cat "$D/phase" 2>/dev/null)" = uploading ] && [ -f "$D/upload.parts" ] && [ "$id" = "$(cat "$D/id" 2>/dev/null)" ] && [ "$kind" = "$(cat "$D/kind" 2>/dev/null)" ] && exit 0
   if [ "$kind" = bounds ]; then [ "$id" = "$(cat "$D/id" 2>/dev/null)" ] && [ -s "$D/candidate.url.b64" ] || exit 1; else
    rm -f "$D/sub.raw" "$D/candidate.url.b64" "$D/previous.json" "$D/candidate.json" "$D/bounds.gz" "$D/bounds.json" "$D/check.json"

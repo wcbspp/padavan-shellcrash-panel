@@ -8,7 +8,7 @@
 
 ### 1. 下载并解压到电脑
 
-[下载 v0.1.2 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v0.1.2/padavan-shellcrash-panel-0.1.2.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。
+[下载 v0.1.3 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v0.1.3/padavan-shellcrash-panel-0.1.3.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。
 
 路由器先开启 SSH，在原「科学上网」页面关闭 SSR 的运行开关。电脑连到这台路由器的局域网。
 
@@ -46,7 +46,7 @@ python3 tools/deploy.py
 - 管理面板、后端脚本、开机启动和异常恢复脚本。
 - 电脑安装助手、备份和卸载工具。
 
-如果只需要基础包，可以下载 [ShellCrash 1.9.4 原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v0.1.2/ShellCrash-1.9.4.tar.gz)。它来自 [官方 1.9.4 发布](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)，源码、来源与校验值保留在 `vendor/`。
+如果只需要基础包，可以下载 [ShellCrash 1.9.4 原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v0.1.3/ShellCrash-1.9.4.tar.gz)。它来自 [官方 1.9.4 发布](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)，源码、来源与校验值保留在 `vendor/`。
 
 sing-box 内核不打进基础包，安装和重启时按下载源获取；自定义镜像设置见下方说明。
 
@@ -85,6 +85,7 @@ sing-box 内核不打进基础包，安装和重启时按下载源获取；自�
 
 ```sh
 python3 tests/test_project.py
+python3 tests/test_mirror.py
 python3 tools/build_release.py
 ```
 
@@ -93,3 +94,7 @@ python3 tools/build_release.py
 ## 许可
 
 GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版权和图标来源见 [NOTICE](NOTICE.md)。发布包不含私人订阅、密码、ZeroTier 身份或 sing-box 内核二进制。
+
+自定义镜像可在“订阅”页维护，显示公共适配源与镜像版本；配置专用 SSH 上传密钥后，内核和 IP 规则更新会自动同步镜像。见 [镜像配置](docs/MIRRORS.md)。
+
+![订阅、内核和镜像设置（节点与地址为示例）](docs/assets/padavan-subscription.png)

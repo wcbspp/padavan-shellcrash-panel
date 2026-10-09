@@ -3,6 +3,7 @@
 . "$C/starts/core_release.sh"
 if [ "$act" = corecheck ]; then
  phase checking checking_core_update
+ . "$C/starts/mirror_lib.sh"; mirror_probe
  if release_probe; then phase done core_checked; event 'ShellCrash source checked'; else fail "${probe_error:-core_check_failed}"; fi
  exit 0
 fi
@@ -65,10 +66,12 @@ reported=$(/tmp/ShellCrash/CrashCore version 2>/dev/null | head -1)
 [ "$reported" = "sing-box version $next_ver" ] || { rollback; fail core_version_mismatch; exit 1; }
 # Full compatibility check while the old core is stopped, with a small GC target.
 if ! GOMEMLIMIT=8MiB GOGC=10 /tmp/ShellCrash/CrashCore check -D /tmp/ShellCrash -C /tmp/ShellCrash/jsons >> "$D/worker.log" 2>&1; then rollback; fail core_config_incompatible; exit 1; fi
+printf 'sha256=%s\nbinary_size=%s\n' "$(sha256sum "$r/candidate.tgz" | awk '{print $1}')" "$binary" >> "$release"
+. "$C/starts/mirror_lib.sh"
+if ! mirror_required_put core "$r/candidate.tgz" || ! mirror_required_put info "$release"; then rollback; fail mirror_sync_failed_previous_kept; exit 1; fi
 rm -f /tmp/ShellCrash/CrashCore
 mv "$r/candidate.tgz" /tmp/ShellCrash/CrashCore.tar.gz
 cp "$release" "$current"
-printf 'sha256=%s\nbinary_size=%s\n' "$(sha256sum /tmp/ShellCrash/CrashCore.tar.gz | awk '{print $1}')" "$binary" >> "$current"
 sed -i "s/^core_v=.*/core_v=$next_ver/" "$C/configs/ShellCrash.cfg"
 phase starting starting_core_update
 if [ "$was_running" = 1 ] && ! start_core; then rollback; fail core_start_failed_previous_restored; exit 1; fi

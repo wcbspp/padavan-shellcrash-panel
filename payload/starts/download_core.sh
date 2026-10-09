@@ -12,8 +12,9 @@ mkdir -p /tmp/ShellCrash
  fi
 if [ ! -s /tmp/ShellCrash/CrashCore.tar.gz ]; then
  downloaded=0
+ . "$C/starts/mirror_lib.sh"
  expected=$(release_get sha256 "$release")
- for u in $(sed '/^#/d; /^$/d' "$C/configs/core_mirrors.list"); do
+ for u in $(mirror_core_url "$release") $(sed '/^#/d; /^$/d' "$C/configs/core_mirrors.list"); do
   installed=$(release_get version "$release")
   u=$(printf '%s' "$u" | sed "s/singbox-mini-[0-9][0-9.]*-mipsle/singbox-mini-$installed-mipsle/")
   # Preserve the user-configured mirror priority; never accept a different program.

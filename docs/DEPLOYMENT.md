@@ -6,8 +6,8 @@
 
 - 路由器是 K2P / MT7621，运行 Padavan。
 - 不需要预装 ShellCrash。安装包带有 1.9.4 基础脚本；已有安装则需是 1.9.4、配置为 sing-box。
-- 国内 IP 表会优先沿用 `/etc/storage/chinadns/chnroute.txt`；新设备缺少时使用包内规则。
-- 旧 SSR 已停止，SSH 已开启。管理后台通常仍用原来的地址和密码。
+- 国内 IP 表优先使用 ShellCrash 自己保存的表，也可首次导入已有旧表；没有旧插件或旧表时使用包内默认规则。
+- 如果装有旧 SSR，先停止它；没有旧插件也能安装。SSH 需已开启。管理后台通常仍用原来的地址和密码。
 - 电脑能运行 Python 3.9+ 和 `ssh`。Windows 请在 WSL 中运行。
 
 首次安装需要提供 AnyTLS 或 sing-box JSON 订阅。基础框架从包内安装，不用路由器另去 GitHub 下载；sing-box 内核仍通过下载源获取。

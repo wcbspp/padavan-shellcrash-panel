@@ -7,7 +7,7 @@ version=(ROOT/'VERSION').read_text().strip()
 name=f'padavan-shellcrash-panel-{version}'
 dist=ROOT/'dist';dist.mkdir(exist_ok=True)
 files=[]
-for entry in ['README.md','NOTICE.md','LICENSE','VERSION','install.sh','uninstall.sh','backup.sh','restore_storage.sh','vendor','payload','examples','docs','tools','tests']:
+for entry in ['README.md','CHANGELOG.md','NOTICE.md','LICENSE','VERSION','install.sh','uninstall.sh','backup.sh','restore_storage.sh','vendor','payload','examples','docs','tools','tests']:
  p=ROOT/entry
  files += [p] if p.is_file() else [f for f in p.rglob('*') if f.is_file() and '__pycache__' not in f.parts]
 files=sorted(files)

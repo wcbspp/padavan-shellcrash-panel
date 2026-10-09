@@ -1,5 +1,7 @@
 #!/bin/sh
 # Sourced by manage.sh: shares its operation lock and service/save functions.
+. "$C/starts/rules_path.sh"
+rules_ensure || { fail rules_invalid_previous_kept; return 1; }
 R="$D/rules"
 mkdir -p "$R" || return 1
 phase fetching downloading_rules
@@ -13,7 +15,7 @@ fi
 rm -f "$R/raw" "$R/ca.pem"
 count=$(wc -l < "$R/new.txt" | tr -d ' ')
 hash=$(sha256sum "$R/new.txt" | awk '{print $1}')
-if [ "$hash" = "$(sha256sum /etc/storage/chinadns/chnroute.txt | awk '{print $1}')" ]; then
+if [ "$hash" = "$(sha256sum "$RULES_FILE" | awk '{print $1}')" ]; then
  . "$C/starts/mirror_lib.sh"
  if [ -n "$(mirror_get target)" ]; then
   mirror_required_put rules "$R/new.txt" || { fail mirror_sync_failed_previous_kept; return 1; }
@@ -25,7 +27,7 @@ fi
 awk 'FNR==NR{a=a sep "\"" $0 "\"";sep=",";next}
  /^"route":/{if(gsub(/"ip_cidr":\[[^]]*\]/,"\"ip_cidr\":[" a "]")!=1)bad=1; found++}
  {print} END{if(bad||found!=1)exit 1}' "$R/new.txt" "$C/jsons/config.json" > "$R/candidate.json" || { fail configuration_template_missing; return 1; }
-if ! cp "$C/jsons/config.json" "$R/previous.json" || ! cp /etc/storage/chinadns/chnroute.txt "$R/previous.txt" || ! cp "$C/configs/rules.meta" "$R/previous.meta"; then fail rules_backup_failed; return 1; fi
+if ! cp "$C/jsons/config.json" "$R/previous.json" || ! cp "$RULES_FILE" "$R/previous.txt" || ! cp "$C/configs/rules.meta" "$R/previous.meta"; then fail rules_backup_failed; return 1; fi
 was_running=0; [ -z "$(pidof CrashCore)" ] || was_running=1
 . "$C/starts/mirror_lib.sh"
 if ! mirror_required_put rules "$R/new.txt"; then fail mirror_sync_failed_previous_kept; return 1; fi
@@ -40,16 +42,16 @@ if ! "$C/starts/download_core.sh" >> "$D/worker.log" 2>&1 || ! tar -zxf /tmp/She
  fail configuration_check_failed_previous_kept; return 1
 fi
 cp "$R/candidate.json" "$C/jsons/config.json"
-cp "$R/new.txt" /etc/storage/chinadns/chnroute.txt
+cp "$R/new.txt" "$RULES_FILE"
 { echo "$count"; date '+%Y-%m-%d %H:%M:%S'; echo "$hash"; } > "$C/configs/rules.meta"
 if ! save_safe; then
- cp "$R/previous.json" "$C/jsons/config.json"; cp "$R/previous.txt" /etc/storage/chinadns/chnroute.txt; cp "$R/previous.meta" "$C/configs/rules.meta"
+ cp "$R/previous.json" "$C/jsons/config.json"; cp "$R/previous.txt" "$RULES_FILE"; cp "$R/previous.meta" "$C/configs/rules.meta"
  rm -f /tmp/ShellCrash/CrashCore; [ "$was_running" = 0 ] || start_core
  fail persistent_save_failed_previous_kept; return 1
 fi
 if [ "$was_running" = 1 ] && { ! start_core || [ "$(ipset list cn_ip 2>/dev/null | awk '/^Number of entries:/{print $4}')" != "$count" ]; }; then
  stop_core
- cp "$R/previous.json" "$C/jsons/config.json"; cp "$R/previous.txt" /etc/storage/chinadns/chnroute.txt; cp "$R/previous.meta" "$C/configs/rules.meta"
+ cp "$R/previous.json" "$C/jsons/config.json"; cp "$R/previous.txt" "$RULES_FILE"; cp "$R/previous.meta" "$C/configs/rules.meta"
  save_safe; start_core
  fail start_failed_previous_restored; return 1
 fi

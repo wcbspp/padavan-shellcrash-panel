@@ -29,5 +29,9 @@ mkdir -p /tmp/ShellCrash
 mount -t tmpfs -o remount,rw,size=45M tmpfs /tmp
 "$CRASHDIR/starts/download_core.sh" || exit 1
 [ -f "$CRASHDIR/configs/panel-disabled" ] && exit 0
-ln -sf /etc/storage/chinadns/chnroute.txt /tmp/ShellCrash/cn_ip.txt
+. "$CRASHDIR/starts/panel_env.sh" || exit 1
+C=$CRASHDIR
+. "$C/starts/rules_path.sh"
+rules_ensure || exit 1
+ln -sf "$RULES_FILE" /tmp/ShellCrash/cn_ip.txt
 "$CRASHDIR/start.sh" start

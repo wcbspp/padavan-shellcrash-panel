@@ -46,7 +46,9 @@ if [ "$core_present" = 0 ]; then
  "$C/starts/download_core.sh" >> "$D/worker.log" 2>&1 || { fail core_download_failed; exit 1; }
  mirror_put core /tmp/ShellCrash/CrashCore.tar.gz || { rm -f /tmp/ShellCrash/CrashCore.tar.gz; fail mirror_sync_failed; exit 1; }
 fi
-mirror_put info "$C/configs/core-installed.info" && mirror_put rules /etc/storage/chinadns/chnroute.txt && mirror_put cn /tmp/ShellCrash/ruleset/cn.srs || { fail mirror_sync_failed; rm -f /tmp/ShellCrash/CrashCore.tar.gz; exit 1; }
+. "$C/starts/rules_path.sh"
+rules_ensure || { fail rules_invalid_previous_kept; exit 1; }
+mirror_put info "$C/configs/core-installed.info" && mirror_put rules "$RULES_FILE" && mirror_put cn /tmp/ShellCrash/ruleset/cn.srs || { fail mirror_sync_failed; rm -f /tmp/ShellCrash/CrashCore.tar.gz; exit 1; }
 # Boot no longer needs the compressed archive once the executable is mapped.
 [ -z "$(pidof CrashCore)" ] || rm -f /tmp/ShellCrash/CrashCore.tar.gz
 save_safe || { fail persistent_save_failed; exit 1; }

@@ -209,7 +209,7 @@ class BootstrapTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as td:
    d=Path(td);storage,c,package,env,command=self.fixture(d)
    result=run(command,env=env);self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-   self.assertEqual((c/'version').read_text().strip(),'1.9.4release');self.assertTrue((storage/'chinadns/chnroute.txt').exists());self.assertTrue((d/'saved').exists())
+   self.assertEqual((c/'version').read_text().strip(),'1.9.4release');self.assertTrue((c/'configs/cn_ip.default.txt').exists());self.assertFalse((storage/'chinadns').exists());self.assertTrue((d/'saved').exists())
    backup=d/'tmp/padavan-panel-before-install.tar.gz'
    with tarfile.open(backup) as t:
     self.assertIn('shellcrash=absent',t.extractfile('_panel_backup_state').read().decode())

@@ -50,7 +50,7 @@ def subscription_nodes(raw):
 
 
 def read_snapshot(raw):
-    expected = ['started_script.sh', 'ShellCrash/jsons/config.json', 'chinadns/chnroute.txt']
+    expected = ['started_script.sh', 'ShellCrash/jsons/config.json', 'chinadns/chnroute.txt', 'ShellCrash/configs/cn_ip.txt', 'ShellCrash/cn_ip.txt']
     if len(raw) > 3 * 1024 * 1024:
         raise ValueError('路由器配置超过大小限制')
     with tarfile.open(fileobj=io.BytesIO(raw), mode='r:gz') as archive:
@@ -125,11 +125,11 @@ def main():
         connected = False
         try:
             print('\n1/4 连接路由器。SSH 密码由 ssh 自己询问。')
-            raw = remote('set -- started_script.sh; [ ! -f /etc/storage/ShellCrash/jsons/config.json ] || set -- "$@" ShellCrash/jsons/config.json; [ ! -f /etc/storage/chinadns/chnroute.txt ] || set -- "$@" chinadns/chnroute.txt; tar -czf - -C /etc/storage "$@"', capture=True)
+            raw = remote('set -- started_script.sh; for f in ShellCrash/configs/cn_ip.txt ShellCrash/cn_ip.txt; do [ ! -f /etc/storage/$f ] || set -- "$@" "$f"; done; [ ! -f /etc/storage/ShellCrash/jsons/config.json ] || set -- "$@" ShellCrash/jsons/config.json; [ ! -f /etc/storage/chinadns/chnroute.txt ] || set -- "$@" chinadns/chnroute.txt; tar -czf - -C /etc/storage "$@"', capture=True)
             connected = True
             snapshot = read_snapshot(raw)
             source = snapshot.get('ShellCrash/jsons/config.json')
-            cn = snapshot.get('chinadns/chnroute.txt') or (ROOT / 'vendor/ShellCrash-1.9.4/cn_ip.txt').read_bytes()
+            cn = snapshot.get('ShellCrash/configs/cn_ip.txt') or snapshot.get('chinadns/chnroute.txt') or snapshot.get('ShellCrash/cn_ip.txt') or (ROOT / 'examples/cn_ip.default.txt').read_bytes()
             subscription = None
             if not args.check_only:
                 prompt = '订阅链接（不回显；回车沿用现有节点）：' if source else '首次安装，请输入订阅链接（不回显）：'

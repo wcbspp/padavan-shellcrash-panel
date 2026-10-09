@@ -20,7 +20,7 @@ for cmd in nvram curl iptables ipset bzip2 sha256sum mtd_write mount stat awk ta
 [ -f "$framework/version" ] && grep -q '^1\.9\.4' "$framework/version" || { echo '此版本适配ShellCrash 1.9.4，其他版本需单独验证'; exit 1; }
 [ "$fresh" = 1 ] || { [ -f "$C/configs/ShellCrash.cfg" ] && grep -qx 'crashcore=singbox' "$C/configs/ShellCrash.cfg"; } || { echo '先在ShellCrash中配置sing-box'; exit 1; }
 [ "$(uname -m)" = mips ] || [ "$(uname -m)" = mipsel ] || { echo '首版只验证MT7621/MIPSLE，其他架构不直接安装'; exit 1; }
-[ -f /etc/storage/chinadns/chnroute.txt ] || [ -f "$V/cn_ip.txt" ] || { echo '缺少国内IPv4规则表'; exit 1; }
+[ -f "$C/configs/cn_ip.txt" ] || [ -f /etc/storage/chinadns/chnroute.txt ] || [ -f "$BASE/examples/cn_ip.default.txt" ] || { echo '缺少国内IPv4规则表'; exit 1; }
 if [ "$fresh" = 1 ]; then
  printf '4f946031a0483ed528e266143d459075489cce6c3f8f2f4681f39ca6d7448681  %s\n' "$BASE/vendor/ShellCrash-1.9.4.tar.gz" | sha256sum -c - >/dev/null || { echo '原始ShellCrash包校验失败'; exit 1; }
  (cd "$V" && sha256sum -c SHA256SUMS >/dev/null) || { echo '内置ShellCrash包校验失败'; exit 1; }
@@ -91,10 +91,6 @@ else
  mkdir -p "$C/configs" "$C/jsons" "$C/task"
  printf 'crashcore=singbox\nversionsh_l=1.9.4release\nsystype=Padavan\n' > "$C/configs/ShellCrash.cfg"
 fi
-if [ ! -f /etc/storage/chinadns/chnroute.txt ]; then
- mkdir -p /etc/storage/chinadns
- cp "$V/cn_ip.txt" /etc/storage/chinadns/chnroute.txt
-fi
 # Keep the router-specific cfg and upstream framework; overlay only published files.
 cp -R "$BASE/payload/starts/." "$C/starts/" || exit 1
 cp -R "$BASE/payload/libs/." "$C/libs/" || exit 1
@@ -103,6 +99,8 @@ cp -R "$BASE/payload/padavan/." "$C/padavan/"
 cp -R "$BASE/payload/ui/." "$C/ui/"
 cp /tmp/padavan-panel-profile.json "$C/jsons/config.json"
 [ -z "$subscription_file" ] || cp "$subscription_file" "$C/configs/subscription.url.b64"
+cp "$BASE/examples/cn_ip.default.txt" "$C/configs/cn_ip.default.txt"
+cp "$BASE/examples/cn_ip.default.info" "$C/configs/cn_ip.default.info"
 cp "$BASE/examples/core-installed.info" "$C/configs/core-installed.info"
 [ -f "$C/configs/core_mirrors.list" ] || : > "$C/configs/core_mirrors.list"
 [ -f "$C/configs/panel.conf" ] || cp "$BASE/examples/panel.conf.example" "$C/configs/panel.conf"

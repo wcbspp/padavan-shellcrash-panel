@@ -2,20 +2,20 @@
 
 这是不用安装助手时的操作步骤。电脑和路由器上的命令分开列出；示例网关 `192.168.1.1`、用户名 `admin` 均需按实际情况修改。
 
-前提与 [安装说明](DEPLOYMENT.md) 相同。新设备会安装包内的 ShellCrash 1.9.4，无需先手动装框架。先停止旧 SSR，准备好可用的 sing-box 节点 JSON，命名为 `nodes.json`，放在解压后的安装包文件夹。
+前提与 [安装说明](DEPLOYMENT.md) 相同。新设备会安装包内的 ShellCrash 1.9.4，无需先手动装框架。若装有旧 SSR，先停止它；准备好可用的 sing-box 节点 JSON，命名为 `nodes.json`，放在解压后的安装包文件夹。
 
 ## 1. 在电脑上取回国内 IP 表
 
-以下命令在解压后的文件夹执行。已有国内规则时从路由器取回：
+先使用包内默认表，不需要旧插件：
 
 ```sh
-scp -O admin@192.168.1.1:/etc/storage/chinadns/chnroute.txt ./chnroute.txt
+cp examples/cn_ip.default.txt ./chnroute.txt
 ```
 
-新设备没有该文件时，直接用包内规则：
+如果需要保留路由器上的已更新表，可在确认文件存在后覆盖本地默认表。新版路径为 `/etc/storage/ShellCrash/configs/cn_ip.txt`；旧版可能是 `/etc/storage/chinadns/chnroute.txt` 或 ShellCrash 自己的 `cn_ip.txt`。安装助手会自动查找，手动安装按实际路径取回即可。
 
 ```sh
-cp vendor/ShellCrash-1.9.4/cn_ip.txt ./chnroute.txt
+scp -O admin@192.168.1.1:/etc/storage/ShellCrash/configs/cn_ip.txt ./chnroute.txt
 ```
 
 ## 2. 在电脑上生成配置

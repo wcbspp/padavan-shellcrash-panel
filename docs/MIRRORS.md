@@ -10,7 +10,7 @@
 
 ## 下载与更新
 
-开机时，内核和 `cn.srs` 优先从镜像直连下载；失败再尝试公共源。内核按已保存的 SHA256 下载，无法用旧文件替换新版本。节点、DNS 和国内 IP 表保存在 Storage，重启不重新下载配置或 IP 表。
+开机时，内核和 `cn.srs` 优先从镜像直连下载；失败再尝试公共源。内核按已保存的 SHA256 下载，无法用旧文件替换新版本。节点、DNS 设置和国内 IP 表都保存在 Storage，其中 IP 表使用 `ShellCrash/configs/cn_ip.txt`；重启不重新下载配置或 IP 表。
 
 “更新内核”向 ShellCrash 已配置的适配源检查最新版本，程序包优先从镜像下载；没有对应文件时从原源下载。新程序通过版本、配置校验后，先上传镜像并验证下载，再保存安装记录。上传失败则回退原内核。
 
@@ -66,3 +66,15 @@ HTTP 镜像不传输密码，但下载必须匹配 SHA256。更换服务器时�
 已有 `configs/core_mirrors.list` 和 `PANEL_CN_MIRROR` 继续作为备用下载地址。面板维护的新目录优先于这些旧地址。下载目录留空不会删除旧地址；若希望完全使用公共源，应同时清理旧配置。
 
 内核和域名库放在 RAM，断电后重新下载；ShellCrash 本体、面板、配置保存在 Storage。镜像不是配置备份，私有备份另存受保护目录。
+
+## 国内 IP 表的持久化与路径
+
+安装包附带 `examples/cn_ip.default.txt`，共 4507 条 IPv4 网段，来自 ShellCrash 1.9.4 官方原包。来源和 SHA256 在 `examples/cn_ip.default.info`。
+
+首次启动按以下顺序查找可用表并导入 ShellCrash 自己的 `configs/cn_ip.txt`：指定的 `PANEL_CN_IP_FILE`、旧插件 `/etc/storage/chinadns/chnroute.txt`、ShellCrash 原来的 `cn_ip.txt`、内置默认表。缺失的路径和校验不通过的旧表跳过，不要求创建旧插件目录。
+
+如果当前规则在其他位置，可在 `configs/panel.conf` 设置 `PANEL_CN_IP_FILE='/你的路径/chnroute.txt'`，用于首次导入。指定路径不存在时仍回退内置表。已有的有效 `configs/cn_ip.txt` 始终优先，避免重启覆盖手动更新。
+
+此后前台“更新国内 IP 规则”只维护 ShellCrash 自己的持久化表，并同步内核、防火墙和已配置的镜像。更新失败保留旧表；规则相同不重启。`rules.meta` 缺失时自动补齐，不会因为少了更新记录文件而失败。
+
+这解决国内规则的路径依赖；安装器仍针对文档中列出的 K2P/Padavan 环境，不表示支持所有路由器固件。

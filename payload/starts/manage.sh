@@ -53,16 +53,12 @@ status(){
  rules_count=$(head -1 "$C/configs/rules.meta" 2>/dev/null); case "$rules_count" in ''|*[!0-9]*) rules_count=4305;; esac
  dns_mode=$(sed -n 's/^dns_mod=//p' "$C/configs/ShellCrash.cfg" | head -1); case "$dns_mode" in mix|fake-ip|redir_host) :;; *) dns_mode=unknown;; esac
  rules_date=$(sed -n '2p' "$C/configs/rules.meta" 2>/dev/null | base64 | tr -d '\n')
- printf '{"mirror_base_b64":"%s","mirror_target_b64":"%s","mirror_last_b64":"%s","mirror_ready":%s,"mirror_check":%s,"dns_mode":"%s","rules_count":%s,"rules_date_b64":"%s","running":%s,"enabled":%s,"rss_kb":%s,"free_kb":%s,"recoveries":%s,"active":%s,"phase":"%s","message_b64":"%s","url_b64":"%s","id":"%s","core_version":"%s","core_sha":"%s","core_blob":"%s","core_check":%s,"available_kb":%s,"pressure":"%s","shmem_kb":%s,"slab_kb":%s,"tcp_kb":%s,"conntrack":%s}\n' "$mirror_base_b64" "$mirror_target_b64" "$mirror_last_b64" "$mirror_ready" "$mirror_check" "$dns_mode" "$rules_count" "$rules_date" "$running" "$mode" "${rss:-0}" "${mem:-0}" "$recoveries" "$active" "$ph" "$msg" "$url" "$nonce" "$core_version" "$core_sha" "$core_blob" "$core_check" "$rh_available" "$rh_pressure" "$rh_shmem" "$rh_slab" "$rh_tcp" "$rh_conn"
- trim_logs
+ cleanup='{}'; [ ! -s "$D/cleanup.json" ] || cleanup=$(cat "$D/cleanup.json")
+ printf '{"cleanup":%s,"mirror_base_b64":"%s","mirror_target_b64":"%s","mirror_last_b64":"%s","mirror_ready":%s,"mirror_check":%s,"dns_mode":"%s","rules_count":%s,"rules_date_b64":"%s","running":%s,"enabled":%s,"rss_kb":%s,"free_kb":%s,"recoveries":%s,"active":%s,"phase":"%s","message_b64":"%s","url_b64":"%s","id":"%s","core_version":"%s","core_sha":"%s","core_blob":"%s","core_check":%s,"available_kb":%s,"pressure":"%s","shmem_kb":%s,"slab_kb":%s,"tcp_kb":%s,"conntrack":%s}\n' "$cleanup" "$mirror_base_b64" "$mirror_target_b64" "$mirror_last_b64" "$mirror_ready" "$mirror_check" "$dns_mode" "$rules_count" "$rules_date" "$running" "$mode" "${rss:-0}" "${mem:-0}" "$recoveries" "$active" "$ph" "$msg" "$url" "$nonce" "$core_version" "$core_sha" "$core_blob" "$core_check" "$rh_available" "$rh_pressure" "$rh_shmem" "$rh_slab" "$rh_tcp" "$rh_conn"
 }
 trim_logs(){
-# Bound transient diagnostic files without a new log daemon.
- for f in "$D/events.log" /tmp/ShellCrash/core.log; do
-  [ -f "$f" ] || continue
-  n=$(stat -c %s "$f" 2>/dev/null)
-  if [ "${n:-0}" -gt 65536 ]; then tail -c 32768 "$f" > "$D/trim"; cat "$D/trim" > "$f"; rm -f "$D/trim"; fi
- done
+ . "$C/starts/resource_health.sh"
+ resource_cleanup
 }
 stop_core(){
  old=$(pidof CrashCore)
@@ -105,7 +101,15 @@ case "$act" in
  trim) trim_logs;;
  status) status;;
  incidents) [ ! -f "$D/incidents.log" ] || tail -100 "$D/incidents.log";;
- memory) [ ! -f "$D/memory.csv" ] || cat "$D/memory.csv";;
+ memory) [ ! -f "$D/resources.csv" ] || awk -F, 'NF==15{print $1 "," $2 "," $3 "," $4 "," $5 ",0"}' "$D/resources.csv";;
+ cleanup)
+  valid_id "$id" || exit 1
+  lock || exit 1
+  echo "$id" > "$D/id"
+  phase cleaning cleaning_memory
+  . "$C/starts/resource_health.sh"
+  rh_manual=1
+  if resource_cleanup; then phase done memory_cleaned; else fail cleanup_busy; fi;;
  mirrorsave|mirrorsync)
   valid_id "$id" || exit 1
   if [ "$act" = mirrorsave ]; then [ "$id" = "$(cat "$D/id" 2>/dev/null)" ] || exit 1; fi

@@ -45,7 +45,7 @@ async function loadMemory(force=false){
  }catch(e){el('memory-summary').textContent='读取趋势失败：'+e.message}
  finally{memoryLoading=false}
 }
-el('memory-open').onclick=()=>{showTab('logs');el('memory-details').open=true;loadMemory(true)};
+el('memory-open').onclick=()=>{showTab('monitor');el('memory-details').open=true;loadMemory(true)};
 el('memory-details').ontoggle=()=>{if(el('memory-details').open)loadMemory(true)};
 el('memory-refresh').onclick=()=>loadMemory(true);
 el('core-check').onclick=()=>kernelAction('corecheck');el('core-update').onclick=()=>kernelAction('coreupdate');
@@ -56,5 +56,23 @@ async function loadIncidents(){
  for(const r of rows){const card=document.createElement('div');card.className='incident-row';const title=document.createElement('strong');title.textContent=r[0]+' · '+({oom:'内存不足，被系统终止',legacy_oom:'旧插件更新触发内存不足',unknown:'进程退出，原因未确认'}[r[2]]||'进程退出');const detail=document.createElement('p');detail.className='small-note';detail.textContent='检测 '+r[1]+' · '+(r[6]==='restored'?'已自动恢复':r[6]==='failed'?'恢复失败':'恢复中')+(Number(r[3])?' · PID '+r[3]:'')+(Number(r[4])?' · 退出时内核 '+(Number(r[4])/1024).toFixed(1)+' MB':'')+(Number(r[5])?' · 最近采样空闲 '+(Number(r[5])/1024).toFixed(1)+' MB':'');card.append(title,detail);box.append(card)}
  }catch(e){el('incident-summary').textContent='读取失败：'+e.message}
 }
-el('incident-open').onclick=()=>{showTab('logs');el('incident-details').open=true;loadIncidents()};
+el('incident-open').onclick=()=>{showTab('monitor');el('incident-details').open=true;loadIncidents()};
 el('incident-refresh').onclick=loadIncidents;
+
+function paintMonitor(){
+ if(!nativeState)return;const s=nativeState,mb=n=>(Number(n||0)/1024).toFixed(1)+' MB';
+ el('monitor-available').textContent=mb(s.available_kb);el('monitor-rss').textContent=mb(s.rss_kb);
+ el('monitor-pressure').textContent=({normal:'正常',warning:'余量偏低',protect:'保护中'}[s.pressure]||'—');el('monitor-connections').textContent=String(s.conntrack||0);
+ const c=s.cleanup||{};if(c.time)el('cleanup-result').textContent=(c.manual?'手动':'自动')+'清理 · '+new Date(c.time*1000).toLocaleString('zh-CN',{hour12:false})+' · 删除 '+c.removed+' 个临时文件，裁剪 '+c.trimmed+' 份日志 · 文件减少 '+(c.file_bytes/1024).toFixed(1)+' KB · 可用 '+mb(c.before_kb)+' → '+mb(c.after_kb)+(c.file_bytes===0?' · 没有可清理文件':'');
+}
+let monitorLoading=false;
+async function refreshMonitor(){if(monitorLoading||manageBusy)return;monitorLoading=true;el('monitor-refresh').disabled=true;try{await syncNative();await Promise.all([loadMemory(true),loadIncidents()])}catch(e){el('cleanup-result').textContent=e.message}finally{monitorLoading=false;el('monitor-refresh').disabled=false}}
+async function cleanupMemory(){
+ if(manageBusy||nativeState?.active)return;pauseMeasurements();pauseSites();manageBusy=true;showService();
+ const id=[...crypto.getRandomValues(new Uint8Array(4))].map(b=>b.toString(16).padStart(2,'0')).join('');
+ el('cleanup-result').textContent='正在清理…';
+ try{await control('sc-cleanup.sh',[id]);await waitJob(id,'done',30000,'cleanup-result');paintMonitor()}
+ catch(e){el('cleanup-result').textContent=e.message;note(e.message,true)}
+ finally{manageBusy=false;showService()}
+}
+el('monitor-refresh').onclick=refreshMonitor;el('memory-cleanup').onclick=cleanupMemory;

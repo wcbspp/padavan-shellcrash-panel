@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline checks: never connect to a router or run its installer."""
-import json, os, re, shutil, subprocess, sys, tempfile, unittest
+import base64, importlib.util, io, json, os, re, shutil, subprocess, sys, tarfile, tempfile, unittest
+from unittest.mock import patch
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -86,5 +87,70 @@ class ProjectTests(unittest.TestCase):
    hook=c/'task/bfstart';hook.write_text('echo user-hook\n')
    result=run(['sh',str(f),'--check']);self.assertNotEqual(result.returncode,0);self.assertIn('已有自定义钩子',result.stdout,result.stderr);self.assertEqual(hook.read_text(),'echo user-hook\n')
    hook.unlink();result=run(['sh',str(f),'--check']);self.assertEqual(result.returncode,0,result.stdout+result.stderr);self.assertIn('预检通过',result.stdout)
+
+class DeployTests(unittest.TestCase):
+ @classmethod
+ def setUpClass(cls):
+  spec=importlib.util.spec_from_file_location('deploy',ROOT/'tools/deploy.py')
+  cls.deploy=importlib.util.module_from_spec(spec);spec.loader.exec_module(cls.deploy)
+ def snapshot(self):
+  buffer=io.BytesIO()
+  with tarfile.open(fileobj=buffer,mode='w:gz') as t:
+   entries={'ShellCrash/jsons/config.json':json.dumps({'outbounds':[{'type':'anytls','tag':'香港01','server':'proxy.example.com','server_port':443,'password':'fixture-only','tls':{'enabled':True}}]}).encode(),'chinadns/chnroute.txt':b'1.0.1.0/24\n'}
+   for name,data in entries.items():
+    info=tarfile.TarInfo(name);info.size=len(data);t.addfile(info,io.BytesIO(data))
+  return buffer.getvalue()
+ def test_anytls_plain_and_base64(self):
+  raw='anytls://pass%40word@proxy.example.com:443?sni=tls.example.com&alpn=h2,http%2F1.1#香港01'.encode()
+  plain=self.deploy.subscription_nodes(raw);self.assertEqual(plain,self.deploy.subscription_nodes(base64.urlsafe_b64encode(raw)))
+  self.assertEqual(plain[0]['password'],'pass@word');self.assertEqual(plain[0]['tls']['server_name'],'tls.example.com');self.assertEqual(plain[0]['tls']['alpn'],['h2','http/1.1'])
+  self.assertFalse(plain[0]['tls']['insecure'])
+ def test_unsupported_link_rejected(self):
+  with self.assertRaises(ValueError):self.deploy.subscription_nodes(b'trojan://fixture@proxy.example.com#demo')
+ def test_snapshot_does_not_extract_paths(self):
+  result=self.deploy.read_snapshot(self.snapshot());self.assertIn('chinadns/chnroute.txt',result)
+  buffer=io.BytesIO()
+  with tarfile.open(fileobj=buffer,mode='w:gz') as t:
+   info=tarfile.TarInfo('ShellCrash/jsons/config.json');info.type=tarfile.SYMTYPE;info.linkname='/etc/passwd';t.addfile(info)
+  with self.assertRaises(ValueError):self.deploy.read_snapshot(buffer.getvalue())
+ def test_upload_contains_only_runtime_files_and_private_inputs(self):
+  with tempfile.TemporaryDirectory() as td:
+   d=Path(td);(d/'profile').write_text('{}');(d/'secret').write_text('fixture-secret')
+   with tarfile.open(fileobj=io.BytesIO(self.deploy.make_upload(d/'profile',d/'secret'))) as t:
+    names=t.getnames();self.assertIn('package/install.sh',names);self.assertNotIn('package/.git',names)
+    self.assertEqual(t.getmember('panel-secret.private').mode,0o600)
+    self.assertEqual(t.extractfile('panel-secret.private').read(),b'fixture-secret')
+ def lifecycle(self,install_fails=False,preflight_fails=False,subscription=False):
+  original_run=subprocess.run;calls=[];raw=self.snapshot()
+  with tempfile.TemporaryDirectory() as td:
+   def fake_run(argv,**kw):
+    if argv[0]!= 'ssh':return original_run(argv,**kw)
+    command=argv[-1];calls.append(command)
+    if subscription and command.startswith('umask 077;'):
+     with tarfile.open(fileobj=io.BytesIO(kw['input'])) as archive:
+      self.assertEqual(base64.b64decode(archive.extractfile('subscription.private').read()),b'https://provider.example.com/subscription')
+    code=1 if (install_fails and '--install' in command) or (preflight_fails and '--check' in command) else 0
+    output=raw if 'ShellCrash/jsons/config.json' in command else None
+    if hasattr(kw.get('stdout'),'write'):kw['stdout'].write(raw)
+    return subprocess.CompletedProcess(argv,code,stdout=output)
+   argv=['deploy.py','--router','192.168.1.1','--user','admin','--port','22','--backup-dir',td]
+   with patch.object(sys,'argv',argv),patch.object(self.deploy.subprocess,'run',side_effect=fake_run),patch.object(self.deploy.getpass,'getpass',return_value='https://provider.example.com/subscription' if subscription else ''),patch.object(self.deploy.urllib.request,'urlopen',side_effect=lambda *a,**k:io.BytesIO(self.deploy.read_snapshot(raw)['ShellCrash/jsons/config.json'])),patch('sys.stdout',new=io.StringIO()),patch('sys.stderr',new=io.StringIO()):
+    if install_fails or preflight_fails:
+     with self.assertRaises(RuntimeError):self.deploy.main()
+    else:self.deploy.main()
+   backups=list(Path(td).glob('*.tar.gz'))
+   if preflight_fails:
+    self.assertFalse(backups);self.assertFalse(any('--install' in c for c in calls))
+   else:
+    self.assertEqual(len(backups),1);self.assertEqual(backups[0].stat().st_mode&0o777,0o600)
+    with tarfile.open(backups[0]) as t:self.assertTrue(t.getnames())
+   self.assertTrue(any(c.startswith('rm -rf ') for c in calls))
+   return calls
+ def test_successful_install_backs_up_before_installing(self):
+  calls=self.lifecycle();backup=next(i for i,c in enumerate(calls) if c.endswith('ShellCrash started_script.sh'));install=next(i for i,c in enumerate(calls) if '--install' in c);self.assertLess(backup,install)
+ def test_subscription_is_uploaded_and_recorded(self):
+  calls=self.lifecycle(subscription=True);self.assertTrue(any('--subscription-file ../subscription.private' in c for c in calls))
+ def test_failed_install_keeps_local_backup(self):self.lifecycle(install_fails=True)
+ def test_failed_preflight_never_installs(self):self.lifecycle(preflight_fails=True)
 
 if __name__=='__main__':unittest.main(verbosity=2)

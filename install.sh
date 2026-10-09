@@ -5,9 +5,9 @@ export PATH=/usr/sbin:/usr/bin:/sbin:/bin:$PATH
 BASE=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
 C=/etc/storage/ShellCrash
 mode=${1:---check}; shift || :
-profile=''; secret_file=''
+profile=''; secret_file=''; subscription_file=''
 while [ "$#" -gt 0 ]; do
- case "$1" in --profile) profile=$2; shift 2;; --secret-file) secret_file=$2; shift 2;; *) echo "未知参数: $1"; exit 1;; esac
+ case "$1" in --profile) profile=$2; shift 2;; --secret-file) secret_file=$2; shift 2;; --subscription-file) subscription_file=$2; shift 2;; *) echo "未知参数: $1"; exit 1;; esac
 done
 [ "$mode" = --check ] || [ "$mode" = --install ] || { echo '用法: sh install.sh --check | --install --profile FILE --secret-file FILE'; exit 1; }
 [ "$(id -u)" = 0 ] || { echo '需要路由器SSH管理员权限'; exit 1; }
@@ -28,6 +28,7 @@ done
 [ ! -f "$C/.dis_startup" ] || { echo '现有ShellCrash关闭了自启动，先确认开机策略'; exit 1; }
 [ ! -e /tmp/sc-legacy-guard ] || { echo '已有本项目运行覆盖，请按升级文档处理'; exit 1; }
 [ ! -d /opt/share/www/custom ] && [ -n "$(ls -A /opt 2>/dev/null)" ] && { echo '已有/opt内容且无custom网页目录，停止安装'; exit 1; }
+[ -z "$subscription_file" ] || { [ -s "$subscription_file" ] && [ "$(wc -c < "$subscription_file")" -le 4096 ] && ! grep -q '[^A-Za-z0-9+/=]' "$subscription_file"; } || { echo '订阅记录格式无效'; exit 1; }
 printf '预检通过；LAN=%s，目标=%s\n' "$(nvram get lan_ipaddr)" "$C"
 [ "$mode" = --install ] || exit 0
 [ ! -d /tmp/padavan-panel-install.lock ] || { echo '已有安装任务'; exit 1; }
@@ -77,6 +78,7 @@ mkdir -p "$C/padavan" "$C/ui" "$C/task"
 cp -R "$BASE/payload/padavan/." "$C/padavan/"
 cp -R "$BASE/payload/ui/." "$C/ui/"
 cp /tmp/padavan-panel-profile.json "$C/jsons/config.json"
+[ -z "$subscription_file" ] || cp "$subscription_file" "$C/configs/subscription.url.b64"
 cp "$BASE/examples/core-installed.info" "$C/configs/core-installed.info"
 [ -f "$C/configs/core_mirrors.list" ] || : > "$C/configs/core_mirrors.list"
 [ -f "$C/configs/panel.conf" ] || cp "$BASE/examples/panel.conf.example" "$C/configs/panel.conf"

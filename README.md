@@ -1,75 +1,81 @@
 # Padavan ShellCrash Panel
 
-给 K2P / MT7621 的 Padavan 后台增加一个轻量 ShellCrash 管理页。复用路由器现有的认证、httpd、cron 和 ShellCrash，不增加常驻 Web 服务。
+把 ShellCrash 接进 Padavan 后台：切节点、更新订阅、改 DNS、看日志，都可以在网页里操作。
 
-> **0.1.0 是实验性扩展包，不是路由器固件，也不包含完整 ShellCrash。** 原始部署已在 K2P 上验证启动与重启；本仓库整理后的通用安装器经过离线检查，尚未在另一台干净设备上完整安装验证。请在维护时间部署并准备回滚。
+适用于 **K2P / MT7621 + Padavan + ShellCrash 1.9.4**，使用 sing-box mini 1.12.13。需要先装好 ShellCrash；本项目安装的是管理面板和配套脚本。
 
-## 界面预览
+## 安装
 
-以下图片使用虚构节点和模拟状态，数值不是性能测量。
+### 1. 下载并解压到电脑
 
-![节点管理](docs/assets/nodes-demo.png)
+[下载 v0.1.1 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v0.1.1/padavan-shellcrash-panel-0.1.1.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。
 
-![网站检测](docs/assets/checks-demo.png)
+路由器先开启 SSH，在原「科学上网」页面关闭 SSR 的运行开关。电脑连到这台路由器的局域网。
 
-## 能做什么
+### 2. 在解压后的文件夹里打开终端
 
-- 后台菜单 `高级设置 → ShellCrash`，保留原 SSR 页面；登录路由器后无需再输入面板密钥。
-- 按地区展开具体节点、切换并保存选择，首次打开和切换地区自动测速。
-- 国内、国外网站检测与品牌图标。
-- 订阅更新、启动/停止/重启、DNS 模式与 Fake IP 例外名单、国内 IPv4 规则更新。
-- 日志查看和清空，内核检查及更新，内存趋势、低内存保护、异常时间与诊断证据。
-- 配置落入 Storage；程序放在 RAM，重启按自定义镜像优先、公共源兜底下载并校验。
+只需执行这一条：
 
-不包含任何真实订阅、节点、账户密码、ZeroTier 身份、私有镜像地址或用户完整备份。
+```sh
+python3 tools/deploy.py
+```
 
-## 适用范围
+按提示填写：
 
-| 项目 | 首版要求 |
+| 提示 | 填什么 |
 | --- | --- |
-| 设备 | K2P / MT7621，MIPSLE，128 MB RAM |
-| 固件 | 原始验证版本 Padavan 4.4.198.9-100_20220804；其他分支需适配 `/www`、`nvram_dump` 和 Storage |
-| 框架 | 已安装并配置的 ShellCrash **1.9.4**，目录 `/etc/storage/ShellCrash` |
-| 内核 | sing-box mini **1.12.13**，`mipsle-softfloat`；不支持用本安装器切换 Clash |
-| 规则 | 已有 `/etc/storage/chinadns/chnroute.txt` |
-| 接管 | IPv4 TCP 和 DNS；普通 UDP 直连、AAAA 拒绝；不提供全协议透明代理 |
+| 路由器地址 | 自己的 LAN 网关，例如 `192.168.1.1` |
+| SSH 用户名 | 默认 `admin`，按实际情况修改 |
+| SSH 端口 | 默认 `22`，没改过就直接回车 |
+| SSH 密码 | 路由器管理员密码；输入时不会显示 |
+| 订阅链接 | AnyTLS 或 sing-box JSON 订阅；直接回车则沿用现有节点 |
 
-订阅入口接受 **AnyTLS URI/Base64** 或 **sing-box JSON 节点**；JSON 协议能否运行取决于 mini 内核实际构建能力。不是通用 Clash YAML、SSR/VMess URI 转换器。
+安装助手会自动生成配置、上传文件、检查环境、把安装前备份下载到电脑，再安装并检查服务。第一次 SSH 连接时，终端可能会询问是否信任这台路由器。
 
-## 部署
+### 3. 打开路由器后台
 
-完整步骤见 [部署指南](docs/DEPLOYMENT.md)，设计和限制见 [架构与内存](docs/ARCHITECTURE.md)，回滚见 [恢复指南](docs/RECOVERY.md)。
+登录后点击 **高级设置 → ShellCrash**。如果没看到菜单，刷新浏览器缓存。安装时输入的订阅链接会保存在面板中，以后点「订阅 → 更新」即可。
 
-1. 备份路由器现有 Storage，停止旧 SSR 服务。已有自定义启动钩子时先人工合并，不会自动覆盖。
-2. 在电脑上用 Python 3 将私有 sing-box 节点 JSON 转成面板配置：
+安装前备份保存在你运行命令的文件夹，文件名以 `shellcrash-before-` 开头。请留好，恢复方法见 [备份与卸载](docs/RECOVERY.md)。
 
-```sh
-python3 tools/prepare_profile.py --input nodes.json --output config.private.json \
-  --lan-ip 192.168.1.1 --secret-file panel-secret.private --cn-list chnroute.txt
-```
+遇到错误时看终端最后一条提示；常见问题见 [安装说明](docs/DEPLOYMENT.md)。
 
-`--lan-ip` 必须换成自己的网关；`chnroute.txt` 从路由器取得。生成的配置和密钥应留在本地，**不得提交到仓库**。
+## 界面
 
-3. 将发布包、上述配置和密钥上传到路由器 `/tmp`，解压后执行：
+完整 Padavan 后台，左侧保留「科学上网」，新增「ShellCrash」。截图中的节点、延迟和运行状态是演示数据。
 
-```sh
-sh install.sh --check --profile /tmp/config.private.json
-sh install.sh --install --profile /tmp/config.private.json --secret-file /tmp/panel-secret.private
-```
+![Padavan 后台中的 ShellCrash 节点管理](docs/assets/padavan-nodes.png)
 
-4. 登录路由器原管理页，刷新缓存后打开 ShellCrash。下载安装前备份 `/tmp/padavan-panel-before-install.tar.gz`，随后删除 `/tmp` 中的私有安装输入。
+![Padavan 后台中的网站检测](docs/assets/padavan-checks.png)
 
-安装器修改 ShellCrash 配置、启动钩子和官方标记的自启动条目，停止原内核，再校验新服务。失败会尝试恢复 Storage；运行覆盖清理由维护时重启完成。不要在远程唯一管理链路上盲装。
+## 功能
 
-## 开发与验证
+- 按地区查看具体节点、切换节点、自动测速并保存选择。
+- 检测百度、腾讯、Google、YouTube 等网站是否能访问。
+- 更新订阅，启动、停止或重启服务。
+- 修改 DNS 模式、Fake IP 例外名单，更新国内 IP 规则。
+- 查看和清空日志，检查与更新内核。
+- 查看内存趋势、异常发生时间和诊断记录；低内存时暂停耗资源的管理操作。
+
+程序在 RAM 中运行，重启会重新下载；配置保存在路由器 Storage 中。普通 UDP 直连，AAAA 查询拒绝。具体行为见 [运行方式与限制](docs/ARCHITECTURE.md)。
+
+## 版本与兼容性
+
+目前是实验版。原部署已在 K2P、Padavan `4.4.198.9-100_20220804` 上验证；整理后的安装助手通过模拟安装测试，还没有在另一台干净路由器上完整验证。其他 Padavan 分支不保证兼容。
+
+订阅支持 AnyTLS 链接、Base64 和 sing-box JSON；不支持直接导入 Clash YAML 或其他协议的 URI。JSON 中的协议还需当前 mini 内核支持。
+
+已有自定义启动钩子时，安装助手会停止并提示，不会覆盖。已经装过本面板的路由器也会拒绝重复安装；本版本没有自动升级功能。需要手动部署时看 [手动安装](docs/MANUAL_INSTALL.md)。
+
+## 开发
 
 ```sh
 python3 tests/test_project.py
 python3 tools/build_release.py
 ```
 
-验证包括脚本语法、配置生成、名单转换和公共包内容。若安装了 Node.js，还会检查前端脚本语法。测试不会连接或修改真实路由器。可选 GitHub Actions 模板见 `docs/ci-example.yml`，启用时复制到 `.github/workflows/ci.yml`。
+可选的 GitHub Actions 配置在 `docs/ci-example.yml`。
 
-## 来源与许可
+## 许可
 
-GPL-3.0-only。包含修改的 [ShellCrash](https://github.com/juewuy/ShellCrash) 文件；原作者版权声明保留。修改文件清单、图标来源和商标说明见 [NOTICE](NOTICE.md)。本项目不是 ShellCrash 官方发行版。内核与规则按需从上游下载，不随包分发。
+GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版权和图标来源见 [NOTICE](NOTICE.md)。发布包不含私人订阅、密码、ZeroTier 身份或程序二进制。

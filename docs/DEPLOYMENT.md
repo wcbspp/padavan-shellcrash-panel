@@ -1,35 +1,63 @@
-# 部署指南
+# 安装说明
 
-## 先准备原生环境
+推荐用电脑上的安装助手：`python3 tools/deploy.py`。不需要安装 Python 第三方库，也不用自己传配置、生成密钥或输入 SCP 命令。
 
-使用 [ShellCrash 官方项目](https://github.com/juewuy/ShellCrash) 安装 1.9.4，确认在目标路由器上能够正常运行 sing-box。固定目录为 `/etc/storage/ShellCrash`。本包覆盖部分内部脚本，因此不要把框架升级到其他版本后直接继续使用。
+## 安装前需要什么
 
-关闭旧 SSR 的运行开关，保留其插件和配置。需要已有国内 IPv4 表，时间同步正常，足够 RAM 和剩余 Storage。安装器要求 curl、iptables、ipset、bzip2、sha256sum、mtd_write、mount、stat、awk、tar、base64 和 crontab。
+- 路由器是 K2P / MT7621，运行 Padavan。
+- ShellCrash 1.9.4 已装在 `/etc/storage/ShellCrash`，配置为 sing-box。
+- 已有国内 IP 表 `/etc/storage/chinadns/chnroute.txt`。如果之前装过 SSR，一般已有；安装助手会检查。
+- 旧 SSR 已停止，SSH 已开启。管理后台通常仍用原来的地址和密码。
+- 电脑能运行 Python 3.9+ 和 `ssh`。Windows 请在 WSL 中运行。
 
-既有 `task/bfstart`、`task/afstart` 非空时安装器拒绝覆盖；已有本项目挂载时也拒绝重新安装。首版没有自动升级器，需要在备份后人工合并或恢复原生环境重新安装。原生开机脚本应使用带 `#ShellCrash初始化脚本` 标记的标准条目；自定义、无标记的启动命令须人工处理，避免并行启动。
+如果还没装 ShellCrash，先到 [官方项目](https://github.com/juewuy/ShellCrash) 安装并完成初始配置；本安装包不包含 ShellCrash 主程序。
 
-## 私有输入
+## 安装助手做了什么
 
-在电脑上准备只包含自己的代理节点的 sing-box JSON。`tools/prepare_profile.py` 读取顶层 `outbounds` 或节点数组，保留节点参数，创建地区选择器和固定管理组 `proxy-main`。不要将私人 JSON 放进本仓库。
+1. 通过 SSH 读取路由器已有的节点配置和国内 IP 表。
+2. 如果输入了订阅链接，在电脑上下载订阅；否则沿用已有节点。
+3. 生成节点分组和随机面板密钥，上传到路由器的临时目录。
+4. 检查固件、ShellCrash 版本、旧 SSR 开关和自定义启动钩子。
+5. 把安装前 ShellCrash 配置和开机脚本备份到电脑。
+6. 安装面板，启动内核；通过验证后保存到 Flash。
+7. 删除此次上传的临时配置，关闭 SSH 复用连接。
 
-从路由器下载 `/etc/storage/chinadns/chnroute.txt`。生成参数见 README；生成器以权限 600 保存配置与随机密钥。它拒绝重复节点名、链式 detour 和不合法网段；不是任意旧版配置的迁移工具。运行时最终由 mini 内核校验协议与字段。
+连接用的 SSH 密码由系统 `ssh` 处理，助手不保存它。订阅链接输入时不会回显，安装完成后会保存在路由器，供网页更新使用。电脑上的备份包含私人节点和密码，不要公开上传。
 
-将发布包下载后核对 SHA256SUMS，在路由器 `/tmp` 解压。用 `scp` 上传私有配置、密钥，执行预检与安装。路由器管理员 SSH 权限用于安装；页面继续使用 Padavan 原登录认证。不要把 API 端口 9999 或后台管理端口映射到公网。
+## 我只想检查一下
 
-## 下载优先级
+在解压后的文件夹执行：
 
-程序放在 `/tmp/ShellCrash`，配置放在 `/etc/storage/ShellCrash`。每次重启需下载程序，公网下载必须能直连；程序 SHA256 不匹配就拒绝启动。启动后删除压缩缓存，减轻 RAM 压力。下载失败仍保留配置；普通路由应继续可用，但代理不可用。
+```sh
+python3 tools/deploy.py --check-only
+```
 
-如有自己的服务器，可在 `configs/core_mirrors.list` 按行添加程序 URL，最上方先尝试。文件必须与 `configs/core-installed.info` 的 SHA256 对应。默认空表走 ShellCrash 上游固定版本公共源。例子见 `examples/core_mirrors.list.example`。
+这会读取现有配置，在 `/tmp` 上传临时检查文件，然后删除；不会安装面板或修改 ShellCrash 设置。
 
-国内域名规则镜像写在 `configs/panel.conf` 的 `PANEL_CN_MIRROR`；它也需要匹配脚本的固定 SHA256。普通配置文件是被 shell source 的可信管理员配置，不接受不可信用户编辑。
+## 常见提示
 
-内核更新按钮读取 ShellCrash 配置的 `custcorelink` 或框架适配源。固定版本源没有更新时不会下载另一份程序。要更新到新版本，先确认 ShellCrash 源、内核格式和体积限制；不保证所有最新 sing-box 都适合 128 MB 设备。
+| 提示 | 处理方法 |
+| --- | --- |
+| 找不到 ssh | 安装 OpenSSH；Windows 使用 WSL |
+| SSH 连接失败或拒绝连接 | 检查路由器地址、SSH 开关、端口和电脑是否在同一局域网 |
+| 缺少配置或国内规则 | 先完成 ShellCrash 初始配置，确认国内 IP 表存在 |
+| 请先在旧 SSR 插件中停止服务 | 关闭「科学上网」里的运行开关后再安装 |
+| 已有自定义钩子 | 先备份并检查 `task/bfstart`、`task/afstart`；需要人工合并，别直接删除 |
+| 已有本项目运行覆盖 | 这台路由器已经装过面板，不能用首次安装器重复覆盖 |
+| 订阅下载失败 | 检查电脑能否访问该 HTTPS 链接；安装助手不会关闭证书校验 |
+| 启动未通过验证 | 安装器会尝试恢复原配置；保留电脑上的备份，按恢复文档处理 |
 
-## 配置和规则
+只支持独立节点，暂不支持链式 `detour`。如果服务商提供的是 Clash YAML，先取得 AnyTLS 或 sing-box JSON 格式的订阅。
 
-网页订阅更新使用原始节点名字；节点选择按分钟保存，页面显示保存状态。订阅、DNS 名单、规则和内核元数据会保存到 Storage。程序下载不覆盖这些配置。
+## 安装后怎么用
 
-国内 IPv4 规则由本项目管理动作下载和校验，国内域名规则使用固定的 SRS 文件；不是由 Clash 自动管理数据库。旧 SSR 关闭时其规则更新脚本会被 RAM 包装器拦截，改用新面板更新。
+打开路由器后台的「ShellCrash」。切换节点后等页面保存完成；订阅、DNS 名单和国内 IP 规则都可以在各自标签页更新。保存成功的配置会保留到下次开机。
 
-Mix 表示国内域名返回真实地址，其他 A 查询返回 Fake IP；例外名单返回真实地址，但**返回真实 IP 不代表直连**，流量仍按路由规则处理。例外名单含 OpenClash 风格 `+.`、`*.` 等域名规则；用网页保存会验证格式。不支持直接引用 geosite 语法。AAAA 拒绝、普通 UDP 直连是此适配包的明确限制。
+路由器重启要重新下载内核，不会覆盖已保存的订阅和 DNS 设置。默认走 ShellCrash 的公共源，也可以配自己的服务器：
+
+- 程序镜像：`/etc/storage/ShellCrash/configs/core_mirrors.list`，每行一个 URL，按顺序尝试。
+- 国内域名规则镜像：`/etc/storage/ShellCrash/configs/panel.conf` 中的 `PANEL_CN_MIRROR`。
+
+镜像里的文件必须匹配已有校验值。示例在 `examples/`；内核更新按钮仍沿用 ShellCrash 配置的下载源。
+
+[手动安装](MANUAL_INSTALL.md) · [备份与卸载](RECOVERY.md) · [运行方式与限制](ARCHITECTURE.md)

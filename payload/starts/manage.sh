@@ -37,6 +37,10 @@ status(){
  nonce=$(cat "$D/id" 2>/dev/null)
  active=false; owner_live && active=true
  recoveries=$(cat "$D/recoveries" 2>/dev/null); case "$recoveries" in ''|*[!0-9]*) recoveries=0;; esac
+ autostart=true; [ ! -f "$C/.dis_startup" ] || autostart=false
+ start_source=$(head -1 /tmp/ShellCrash/control-source 2>/dev/null); case "$start_source" in boot|tool|panel|watchdog|system) :;; *) start_source=unknown;; esac
+ guard_mode=conservative; guard_active=false
+ if [ "$running" = true ] && crontab -l 2>/dev/null | grep -q 'start_legacy_wd.sh shellcrash'; then guard_active=true; fi
  core_version=$(sed -n 's/^version=//p' "$C/configs/core-installed.info" 2>/dev/null)
  printf '%s' "$core_version" | grep -Eq '^1\.[0-9]{1,2}\.[0-9]{1,3}$' || core_version=unknown
  core_sha=$(sed -n 's/^sha256=//p' "$C/configs/core-installed.info" 2>/dev/null)
@@ -57,7 +61,7 @@ status(){
  dns_mode=$(sed -n 's/^dns_mod=//p' "$C/configs/ShellCrash.cfg" | head -1); case "$dns_mode" in mix|fake-ip|redir_host) :;; *) dns_mode=unknown;; esac
  rules_date=$(sed -n '2p' "$C/configs/rules.meta" 2>/dev/null | base64 | tr -d '\n')
  cleanup='{}'; [ ! -s "$D/cleanup.json" ] || cleanup=$(cat "$D/cleanup.json")
- printf '"memory_limits":{"warning_mb":%s,"protect_mb":%s,"cleanup_mb":%s},"cleanup":%s,"mirror_base_b64":"%s","mirror_target_b64":"%s","mirror_last_b64":"%s","mirror_ready":%s,"mirror_check":%s,"dns_mode":"%s","rules_count":%s,"rules_date_b64":"%s","running":%s,"enabled":%s,"rss_kb":%s,"free_kb":%s,"recoveries":%s,"active":%s,"phase":"%s","message_b64":"%s","url_b64":"%s","id":"%s","core_version":"%s","core_sha":"%s","core_blob":"%s","core_check":%s,"available_kb":%s,"pressure":"%s","shmem_kb":%s,"slab_kb":%s,"tcp_kb":%s,"conntrack":%s}\n' "$rh_warning_mb" "$rh_protect_mb" "$rh_cleanup_mb" "$cleanup" "$mirror_base_b64" "$mirror_target_b64" "$mirror_last_b64" "$mirror_ready" "$mirror_check" "$dns_mode" "$rules_count" "$rules_date" "$running" "$mode" "${rss:-0}" "${mem:-0}" "$recoveries" "$active" "$ph" "$msg" "$url" "$nonce" "$core_version" "$core_sha" "$core_blob" "$core_check" "$rh_available" "$rh_pressure" "$rh_shmem" "$rh_slab" "$rh_tcp" "$rh_conn"
+ printf '"autostart":%s,"guard_mode":"%s","guard_runtime":"%s","guard_active":%s,"start_source":"%s","guard_owner":"shellcrash","memory_limits":{"warning_mb":%s,"protect_mb":%s,"cleanup_mb":%s},"cleanup":%s,"mirror_base_b64":"%s","mirror_target_b64":"%s","mirror_last_b64":"%s","mirror_ready":%s,"mirror_check":%s,"dns_mode":"%s","rules_count":%s,"rules_date_b64":"%s","running":%s,"enabled":%s,"rss_kb":%s,"free_kb":%s,"recoveries":%s,"active":%s,"phase":"%s","message_b64":"%s","url_b64":"%s","id":"%s","core_version":"%s","core_sha":"%s","core_blob":"%s","core_check":%s,"available_kb":%s,"pressure":"%s","shmem_kb":%s,"slab_kb":%s,"tcp_kb":%s,"conntrack":%s}\n' "$autostart" "$guard_mode" "$guard_mode" "$guard_active" "$start_source" "$rh_warning_mb" "$rh_protect_mb" "$rh_cleanup_mb" "$cleanup" "$mirror_base_b64" "$mirror_target_b64" "$mirror_last_b64" "$mirror_ready" "$mirror_check" "$dns_mode" "$rules_count" "$rules_date" "$running" "$mode" "${rss:-0}" "${mem:-0}" "$recoveries" "$active" "$ph" "$msg" "$url" "$nonce" "$core_version" "$core_sha" "$core_blob" "$core_check" "$rh_available" "$rh_pressure" "$rh_shmem" "$rh_slab" "$rh_tcp" "$rh_conn"
 }
 trim_logs(){
  . "$C/starts/resource_health.sh"
@@ -76,7 +80,7 @@ stop_core(){
  return 1
 }
 start_core(){
- "$C/starts/panel_boot.sh" >> "$D/worker.log" 2>&1
+ SC_CONTROL_SOURCE=panel "$C/starts/panel_boot.sh" >> "$D/worker.log" 2>&1
  secret=$(sed -n 's/^secret=//p' "$C/configs/ShellCrash.cfg" | head -1)
  tries=0
  while [ "$tries" -lt 30 ]; do
@@ -92,7 +96,7 @@ save_safe(){
 }
 fail(){ phase error "$1"; event "$1"; }
 case "$act" in
- fetch|fetchconvert|apply|rules|dns|coreupdate|mirrorsync|mirrorsave)
+ fetch|fetchconvert|fetchpanel|apply|rules|dns|coreupdate|mirrorsync|mirrorsave)
   . "$C/starts/resource_health.sh"; resource_read
   if [ "$rh_pressure" = protect ]; then
    owner_live && exit 1
@@ -102,6 +106,9 @@ case "$act" in
 esac
 case "$act" in
  trim) trim_logs;;
+ converters)
+  f="$C/configs/servers.list"; [ -s "$f" ] || f="$C/servers.list"
+  awk 'BEGIN{printf "{\"servers\":["} /^[34][0-9][0-9][[:space:]]/ && n<8{if(n)printf ",";n++;gsub(/\"/,"",$2);printf "{\"id\":%d,\"name\":\"%s\",\"url\":\"%s\"}",n,$2,$3} END{print "]}"}' "$f";;
  status) status;;
  incidents) [ ! -f "$D/incidents.log" ] || tail -100 "$D/incidents.log";;
  memory) [ ! -f "$D/resources.csv" ] || awk -F, 'NF==15{print $1 "," $2 "," $3 "," $4 "," $5 ",0"}' "$D/resources.csv";;
@@ -178,11 +185,11 @@ case "$act" in
   seq=$(printf '%s' "$chunk" | cut -c 1-4); part=$(printf '%s' "$chunk" | cut -c 5-)
   # Short indexed records can be replayed safely; assembly discards duplicates.
   printf '%s %s\n' "$seq" "$part" >> "$D/upload.parts";;
- fetch|fetchconvert)
+ fetch|fetchconvert|fetchpanel)
   [ "$(cat "$D/phase" 2>/dev/null)" = downloaded ] && [ "$id" = "$(cat "$D/id" 2>/dev/null)" ] && exit 0
   valid_id "$id" && [ "$id" = "$(cat "$D/id" 2>/dev/null)" ] && [ "$(cat "$D/kind")" = source ] || exit 1
   lock || exit 1
-  phase fetching downloading_subscription; : > "$D/worker.log"
+  phase fetching downloading_subscription; rm -f "$D/subscription.error" "$D/subscription.endpoint"; : > "$D/worker.log"
   sort "$D/upload.parts" | awk '!seen[$1]++{printf "%s",$2}' > "$D/upload.b64"
   url=$(base64 -d "$D/upload.b64" 2>/dev/null)
   [ "${#url}" -le 2048 ] || { fail invalid_subscription_url; exit 1; }
@@ -191,7 +198,8 @@ case "$act" in
   printf '%s' "$url" | base64 | tr -d '\n' > "$D/candidate.url.b64"
   printf '%s' "$url" > "$D/native-source"
   method=direct;[ "$act" != fetchconvert ] || method=convert
-  if "$C/starts/subscription_tool.sh" k2p "$method";then
+  policy=${3:-s0a1};case "$policy" in s[0-8]a[01]) :;; *) fail invalid_arguments;exit 1;; esac
+  if [ "$act" != fetchpanel ] && "$C/starts/subscription_tool.sh" k2p "$method" "$policy";then
    event 'Subscription retrieved through ShellCrash'
   elif [ "$method" = direct ];then
    event 'ShellCrash direct retrieval failed; trying previous direct reader'
@@ -208,7 +216,8 @@ case "$act" in
     fi
    fi
   else
-   fail subscription_download_failed;rm -f "$D/sub.raw";exit 1
+   reason=$(head -1 "$D/subscription.error" 2>/dev/null); case "$reason" in subscription_http_*|subscription_dns_failed|subscription_connect_failed|subscription_timeout|subscription_tls_failed) :;; *) reason=subscription_download_failed;; esac
+   fail "$reason";rm -f "$D/sub.raw";exit 1
   fi
   [ -s "$D/sub.raw" ] || { fail empty_subscription; exit 1; }
   phase downloaded subscription_downloaded; event 'Subscription downloaded; active configuration unchanged';;
@@ -241,8 +250,17 @@ case "$act" in
   was_running=0; [ -z "$(pidof CrashCore)" ] || was_running=1
   cp "$C/jsons/config.json" "$D/previous.json"
   cp "$C/configs/subscription.url.b64" "$D/previous.url.b64" 2>/dev/null || : > "$D/previous.url.b64"
+  # Fetch the rollback-compatible binary while the existing proxy still runs.
+  # Refuse staging under pressure rather than stopping an un-restorable service.
+  if [ ! -s /tmp/ShellCrash/CrashCore.tar.gz ]; then
+   . "$C/starts/core_release.sh"
+   bytes=$(release_get archive_size "$C/configs/core-installed.info")
+   case "$bytes" in ''|*[!0-9]*) fail core_download_failed; exit 1;; esac
+   resource_read
+   [ "$rh_available" -gt "$((bytes/1024+rh_protect_mb*1024))" ] || { fail memory_protected; exit 1; }
+   "$C/starts/download_core.sh" >> "$D/worker.log" 2>&1 || { fail core_download_failed; exit 1; }
+  fi
   if [ "$was_running" = 1 ]; then stop_core || { fail service_stop_failed; exit 1; }; fi
-  if [ ! -s /tmp/ShellCrash/CrashCore.tar.gz ]; then "$C/starts/download_core.sh" >> "$D/worker.log" 2>&1 || { fail core_download_failed; exit 1; }; fi
   # Only outbounds change; avoid parsing the unchanged large DNS/CN tables twice.
   { printf '{"outbounds":'; cat "$D/bounds.json"; printf ',"route":{"final":"%s"}}\n' "$PANEL_MAIN_GROUP"; } > "$D/check.json"
   if ! tar -zxf /tmp/ShellCrash/CrashCore.tar.gz -C /tmp/ShellCrash || ! GOMEMLIMIT=12MiB GOGC=25 /tmp/ShellCrash/CrashCore check -c "$D/check.json" >> "$D/worker.log" 2>&1; then

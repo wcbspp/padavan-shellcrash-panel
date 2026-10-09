@@ -122,7 +122,7 @@ printf '%s\n' "$C/starts/panel_afstart.sh" > "$C/task/afstart"
 sed -i '/#ShellCrash初始化脚本$/d; /#PadavanShellCrashPanel$/d' /etc/storage/started_script.sh
 [ ! -f "$C/task/cron" ] || sed -i '/#ShellCrashSaveSelection$/d' "$C/task/cron"
 printf '* * * * * /bin/sh %s/starts/save_selection.sh #ShellCrashSaveSelection\n' "$C" >> "$C/task/cron"
-printf '\n%s & #PadavanShellCrashPanel\n' "$C/starts/panel_boot.sh" >> /etc/storage/started_script.sh
+printf '\n%s boot & #PadavanShellCrashPanel\n' "$C/starts/panel_boot.sh" >> /etc/storage/started_script.sh
 chmod 700 "$C/start.sh" "$C/menu.sh" "$C/starts/"*.sh
 chmod 600 "$C/configs/panel.conf" "$C/configs/core-installed.info" "$C/configs/ShellCrash.cfg" "$C/jsons/config.json"
 # Start in RAM first; save only after the core and authenticated API are healthy.

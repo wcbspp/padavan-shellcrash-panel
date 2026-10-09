@@ -35,18 +35,21 @@ control_token=$(cat /tmp/sc-admin/control-token)
 printf '{"token_b64":"%s","control_token":"%s"}\n' "$secret_b64" "$control_token" > /opt/share/www/custom/sc-auth.asp
 chmod 600 /opt/share/www/custom/sc-auth.asp
 mkdir -p /tmp/sc-admin
-for action in state logs memory incidents; do
+for action in state logs memory incidents converters; do
  verb=$action; [ "$action" != state ] || verb=status
  printf '#!/bin/sh\nexec /etc/storage/ShellCrash/starts/manage.sh %s > /tmp/sc-admin/%s.out\n' "$verb" "$action" > "/tmp/sc-$action.sh"
  chmod 700 "/tmp/sc-$action.sh"
  printf '<%% nvram_dump("sc-admin/%s.out","sc-%s.sh"); %%>\n' "$action" "$action" > "/opt/share/www/custom/sc-$action.asp"
 done
 printf '<%% nvram_dump("sc-admin/sub.raw",""); %%>\n' > /opt/share/www/custom/sc-subscription.asp
+printf '<%% nvram_dump("sc-admin/subscription.endpoint",""); %%>\n' > /opt/share/www/custom/sc-endpoint.asp
+printf '<%% nvram_dump("sc-admin/subscription-tool.log",""); %%>\n' > /opt/share/www/custom/sc-subscriptionlog.asp
+printf '<%% nvram_dump("sc-admin/subscription.progress",""); %%>\n' > /opt/share/www/custom/sc-progress.asp
 ln -sf "$CRASHDIR/configs/fake_ip_filter.list" /opt/share/www/custom/sc-filter.asp
-for action in new put fetch fetchconvert apply start stop restart clear cleanup memcfg rules dns corecheck coreupdate toolcheck toolupdate mirrorsave mirrorsync; do
+for action in new put fetch fetchconvert fetchpanel apply start stop restart clear cleanup memcfg rules dns corecheck coreupdate toolcheck toolupdate mirrorsave mirrorsync; do
  case "$action" in
-  new|put|dns|memcfg) argument_count=3; keep='set -- "$1" "$2"'; token_arg='$3';;
-  cleanup|fetch|fetchconvert|apply|rules|corecheck|coreupdate|toolcheck|toolupdate|mirrorsave|mirrorsync) argument_count=2; keep='set -- "$1"'; token_arg='$2';;
+  new|put|fetchconvert|dns|memcfg) argument_count=3; keep='set -- "$1" "$2"'; token_arg='$3';;
+  cleanup|fetch|fetchpanel|apply|rules|corecheck|coreupdate|toolcheck|toolupdate|mirrorsave|mirrorsync) argument_count=2; keep='set -- "$1"'; token_arg='$2';;
   *) argument_count=1; keep='set --'; token_arg='$1';;
  esac
  printf '#!/bin/sh\n[ "$#" -eq %s ] || exit 1\n[ "%s" = "$(cat /tmp/sc-admin/control-token)" ] || exit 1\n%s\n' "$argument_count" "$token_arg" "$keep" > "/tmp/sc-$action.sh"

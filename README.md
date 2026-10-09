@@ -10,7 +10,7 @@
 
 ### 1. 下载并解压到电脑
 
-[下载 v1.1.0 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.1.0/padavan-shellcrash-panel-1.1.0.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。
+[下载 v1.0.1 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.1/padavan-shellcrash-panel-1.0.1.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。
 
 路由器先开启 SSH，在原「科学上网」页面关闭 SSR 的运行开关。电脑连到这台路由器的局域网。
 
@@ -48,7 +48,7 @@ python3 tools/deploy.py
 - 管理面板、后端脚本、开机启动和异常恢复脚本。
 - 电脑安装助手、备份和卸载工具。
 
-如果只需要基础包，可以下载 [ShellCrash 1.9.4 原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.1.0/ShellCrash-1.9.4.tar.gz)。它来自 [官方 1.9.4 发布](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)，源码、来源与校验值保留在 `vendor/`。
+如果只需要基础包，可以下载 [ShellCrash 1.9.4 原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.1/ShellCrash-1.9.4.tar.gz)。它来自 [官方 1.9.4 发布](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)，源码、来源与校验值保留在 `vendor/`。
 
 sing-box 内核不打进基础包，安装和重启时按下载源获取；自定义镜像设置见下方说明。
 
@@ -79,7 +79,7 @@ sing-box 内核不打进基础包，安装和重启时按下载源获取；自�
 
 目前是实验版。原部署已在 K2P、Padavan `4.4.198.9-100_20220804` 上验证；整理后的安装助手已通过首次安装、失败回滚和恢复配置的模拟测试，还没有在另一台干净路由器上完整验证。其他 Padavan 分支不保证兼容。
 
-订阅支持 AnyTLS 链接、Base64 和 sing-box JSON；不支持直接导入 Clash YAML 或其他协议的 URI。JSON 中的协议还需当前 mini 内核支持。
+订阅支持 AnyTLS 链接、Base64、sing-box JSON，以及 origin/plain 或 origin/http_simple 的兼容 SSR 链接。兼容 SSR 转为 SS（需要时带 HTTP 混淆），节点标识显示实际运行协议；其他 SSR 不适用于 sing-box，界面会提示跳过数量。Clash YAML 和其他未支持的链接格式需先转换。JSON 中的协议仍需当前 mini 内核支持。
 
 已有自定义启动钩子时，安装助手会停止并提示，不会覆盖。已经装过本面板的路由器也会拒绝重复安装；本版本没有自动升级功能。需要手动部署时看 [手动安装](docs/MANUAL_INSTALL.md)。
 
@@ -98,7 +98,7 @@ python3 tools/build_release.py
 
 GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版权和图标来源见 [NOTICE](NOTICE.md)。发布包不含私人订阅、密码、ZeroTier 身份或 sing-box 内核二进制。
 
-自定义镜像可在“订阅”页维护，显示公共适配源与镜像版本；配置专用 SSH 上传密钥后，内核和 IP 规则更新会自动同步镜像。见 [镜像配置](docs/MIRRORS.md)。
+自定义镜像可在“配置”页维护，显示公共适配源与镜像版本；配置专用 SSH 上传密钥后，内核和 IP 规则更新会自动同步镜像。见 [镜像配置](docs/MIRRORS.md)。
 
 ![订阅、内核和镜像设置（节点与地址为示例）](docs/assets/padavan-subscription.png)
 
@@ -106,7 +106,7 @@ GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版�
 
 版本变更见 [CHANGELOG.md](CHANGELOG.md)
 
-## 1.1.0 更新
+## 1.0.1 更新
 
 节点顺序采样三次，显示成功样本的最短时间；首个请求可能包含握手。配置页可检查和更新官方 stable 正式版 ShellCrash 工具。工具更新保留本项目适配及运行配置，不重启其他服务；同版不替换，上游适配依赖发生变化时拒绝覆盖。
 
@@ -116,6 +116,14 @@ GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版�
 
 ## ShellCrash 订阅与保护机制
 
-配置页可选 ShellCrash 直接读取或工具订阅转换。转换采用 crash 中选定的服务，订阅链接会发送给该服务；失败不自动切换转换服务器。直接读取失败保留原读取方式兜底。旧 SSR 条目跳过并显示数量，其他未支持的链接格式提示使用转换或 sing-box JSON。
+配置页默认调用 ShellCrash 从订阅地址直接下载，失败时保留面板直接下载作为兼容兜底。选择转换下载时，可选择 ShellCrash 列表中的服务，并决定是否失败后依次尝试其他服务。
+
+转换前先用不含订阅地址的请求预检接口，只有通过才发送订阅；预检通过不保证转换成功。转换服务来自互联网，安全性请自行斟酌。启用轮询可能向多家服务发送订阅地址。直接下载只联系填写的订阅地址，不发送给第三方转换服务。失败提示显示本次订阅地址、出错接口和最近尝试记录，请勿将包含私人订阅的截图公开。
 
 订阅先在临时目录生成，通过内核校验后再替换；失败保留或恢复当前配置。内存阈值、安全清理、备份回退、异常与恢复记录继续保留。启停通过 ShellCrash 和 Padavan 启动适配执行，并核对实际进程及接口状态。
+
+### 订阅更新如何工作
+
+默认调用 ShellCrash，从填写的订阅地址获取内容；选择转换服务时，订阅地址会发送给面板所选的 ShellCrash 转换服务。也可选择原面板的兼容下载方式。
+
+下载结果放入临时目录，面板整理节点、保留当前 DNS 和分流规则，由运行内核校验，成功后保存并加载；失败保留当前配置。转换暂以 sing-box JSON 为中间格式，随后生成当前内核的运行配置：sing-box 使用 JSON，Mihomo 使用 YAML。仅 Mihomo 支持的字段或协议可能无法完整保留；这不是工具 providers 本地生成流程。

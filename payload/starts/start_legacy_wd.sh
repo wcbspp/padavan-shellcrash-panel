@@ -1,6 +1,7 @@
 
 [ -z "$CRASHDIR" ] && CRASHDIR=$(cd "$(dirname "$0")"/.. && pwd)
 if [ "$1" = shellcrash ]; then
+ [ ! -f /tmp/ShellCrash/manual-stop ] || exit 0
  # A cron tick before the first boot start is not an unexpected core exit.
  [ -f /tmp/ShellCrash/crash_start_time ] || [ -f /tmp/ShellCrash/shellcrash.pid ] || exit 0
  [ ! -d /tmp/padavan-panel-install.lock ] || exit 0
@@ -64,7 +65,7 @@ if [ "$1" = "shellcrash" ]; then
   echo "$attempts" > /tmp/sc-admin/recovery-attempts
   echo $((retry_up+wait_sec)) > /tmp/sc-admin/recovery-due
   old_outage=$(cat /tmp/sc-admin/incident-outage-pid)
-  "$CRASHDIR"/starts/panel_boot.sh
+  SC_CONTROL_SOURCE=watchdog "$CRASHDIR"/starts/panel_boot.sh
   "$CRASHDIR"/starts/incident_record.sh finish "$old_outage"
   exit 0
  fi
@@ -76,7 +77,7 @@ if [ "$1" = "shellcrash" ]; then
 	fi
 	awk '/^(MemFree|MemAvailable|Shmem|Slab):/' /proc/meminfo >> /tmp/sc-admin/events.log
 	"$CRASHDIR"/starts/incident_record.sh begin "${PID:-0}"
-	"$CRASHDIR"/starts/panel_boot.sh
+	SC_CONTROL_SOURCE=watchdog "$CRASHDIR"/starts/panel_boot.sh
 	"$CRASHDIR"/starts/incident_record.sh finish "${PID:-0}"
 else
 	[ -f "$CRASHDIR/starts/start_legacy.sh" ] && . "$CRASHDIR/starts/start_legacy.sh"

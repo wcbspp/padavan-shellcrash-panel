@@ -102,4 +102,4 @@ GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版�
 
 国内 IP 默认表随安装包提供，不依赖旧 SSR 的 chinadns 目录。首次导入已有规则，此后使用 ShellCrash 自己的持久化文件；前台可手动更新，失败保留原表。
 
-版本变更见 [CHANGELOG.md](CHANGELOG.md)。后续更新以 v1.0.0 为基线，每个 Release 附变更说明。
+版本变更见 [CHANGELOG.md](CHANGELOG.md)

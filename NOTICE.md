@@ -2,7 +2,7 @@
 
 本项目基于 Juewuy 的 ShellCrash，原项目：https://github.com/juewuy/ShellCrash ，适配基线 1.9.4。采用 GPL-3.0-only，完整许可见 LICENSE。修改时间：2026-10-09。
 
-包含修改的上游文件：`payload/starts/afstart.sh`、`singbox_modify.sh`、`fw_stop.sh`、`start_legacy_wd.sh`；`payload/libs/web_save.sh`、`web_restore.sh`、`start_wait.sh`。保留文件中已有 Copyright (C) Juewuy 声明；其余面板及适配脚本为本项目新增。完整框架需另行从官方安装，本项目不表示官方背书。
+包含修改的上游文件：`payload/starts/afstart.sh`、`singbox_modify.sh`、`fw_stop.sh`、`start_legacy_wd.sh`；`payload/libs/web_save.sh`、`web_restore.sh`、`start_wait.sh`。保留文件中已有 Copyright (C) Juewuy 声明；其余面板及适配脚本为本项目新增。`vendor/ShellCrash-1.9.4/` 提供官方 1.9.4 发布包中的完整原始脚本；另外添加了 LICENSE.txt 与 SHA256SUMS。原始包、来源及 SHA256 见 `vendor/ShellCrash-1.9.4.tar.gz` 和 `vendor/UPSTREAM.json`。本项目不表示官方背书。
 
 按需下载的 sing-box 及 ShellCrash mini 构建不在发布包内，遵循各自上游许可。国内域名规则来自 https://github.com/DustinWin/ruleset_geodata ，IPv4 数据下载来源见规则更新脚本。版本和哈希写在源码/元数据中，不能用文件名代替校验。
 

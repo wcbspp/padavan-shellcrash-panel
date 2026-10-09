@@ -2,13 +2,13 @@
 
 把 ShellCrash 接进 Padavan 后台：切节点、更新订阅、改 DNS、看日志，都可以在网页里操作。
 
-适用于 **K2P / MT7621 + Padavan + ShellCrash 1.9.4**，使用 sing-box mini 1.12.13。需要先装好 ShellCrash；本项目安装的是管理面板和配套脚本。
+适用于 **K2P / MT7621 + Padavan**，使用 ShellCrash 1.9.4 和 sing-box mini 1.12.13。安装包已包含 ShellCrash 基础脚本；新设备会自动安装，已有安装会先检查版本。
 
 ## 安装
 
 ### 1. 下载并解压到电脑
 
-[下载 v0.1.1 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v0.1.1/padavan-shellcrash-panel-0.1.1.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。
+[下载 v0.1.2 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v0.1.2/padavan-shellcrash-panel-0.1.2.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。
 
 路由器先开启 SSH，在原「科学上网」页面关闭 SSR 的运行开关。电脑连到这台路由器的局域网。
 
@@ -28,9 +28,9 @@ python3 tools/deploy.py
 | SSH 用户名 | 默认 `admin`，按实际情况修改 |
 | SSH 端口 | 默认 `22`，没改过就直接回车 |
 | SSH 密码 | 路由器管理员密码；输入时不会显示 |
-| 订阅链接 | AnyTLS 或 sing-box JSON 订阅；直接回车则沿用现有节点 |
+| 订阅链接 | 首次安装必填；已有节点时直接回车即可沿用 |
 
-安装助手会自动生成配置、上传文件、检查环境、把安装前备份下载到电脑，再安装并检查服务。第一次 SSH 连接时，终端可能会询问是否信任这台路由器。
+安装助手会自动生成配置、上传文件、检查环境、把安装前备份下载到电脑，再安装 ShellCrash、面板和开机启动脚本，最后检查服务。第一次 SSH 连接时，终端可能会询问是否信任这台路由器。
 
 ### 3. 打开路由器后台
 
@@ -39,6 +39,16 @@ python3 tools/deploy.py
 安装前备份保存在你运行命令的文件夹，文件名以 `shellcrash-before-` 开头。请留好，恢复方法见 [备份与卸载](docs/RECOVERY.md)。
 
 遇到错误时看终端最后一条提示；常见问题见 [安装说明](docs/DEPLOYMENT.md)。
+
+## 包里有什么
+
+- 官方 ShellCrash 1.9.4 基础脚本与原始压缩包。
+- 管理面板、后端脚本、开机启动和异常恢复脚本。
+- 电脑安装助手、备份和卸载工具。
+
+如果只需要基础包，可以下载 [ShellCrash 1.9.4 原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v0.1.2/ShellCrash-1.9.4.tar.gz)。它来自 [官方 1.9.4 发布](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)，源码、来源与校验值保留在 `vendor/`。
+
+sing-box 内核不打进基础包，安装和重启时按下载源获取；自定义镜像设置见下方说明。
 
 ## 界面
 
@@ -65,7 +75,7 @@ python3 tools/deploy.py
 
 ## 版本与兼容性
 
-目前是实验版。原部署已在 K2P、Padavan `4.4.198.9-100_20220804` 上验证；整理后的安装助手通过模拟安装测试，还没有在另一台干净路由器上完整验证。其他 Padavan 分支不保证兼容。
+目前是实验版。原部署已在 K2P、Padavan `4.4.198.9-100_20220804` 上验证；整理后的安装助手已通过首次安装、失败回滚和恢复配置的模拟测试，还没有在另一台干净路由器上完整验证。其他 Padavan 分支不保证兼容。
 
 订阅支持 AnyTLS 链接、Base64 和 sing-box JSON；不支持直接导入 Clash YAML 或其他协议的 URI。JSON 中的协议还需当前 mini 内核支持。
 
@@ -82,4 +92,4 @@ python3 tools/build_release.py
 
 ## 许可
 
-GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版权和图标来源见 [NOTICE](NOTICE.md)。发布包不含私人订阅、密码、ZeroTier 身份或程序二进制。
+GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版权和图标来源见 [NOTICE](NOTICE.md)。发布包不含私人订阅、密码、ZeroTier 身份或 sing-box 内核二进制。

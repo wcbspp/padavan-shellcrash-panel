@@ -2,14 +2,20 @@
 
 这是不用安装助手时的操作步骤。电脑和路由器上的命令分开列出；示例网关 `192.168.1.1`、用户名 `admin` 均需按实际情况修改。
 
-前提与 [安装说明](DEPLOYMENT.md) 相同。先停止旧 SSR，准备好可用的 sing-box 节点 JSON，命名为 `nodes.json`，放在解压后的安装包文件夹。
+前提与 [安装说明](DEPLOYMENT.md) 相同。新设备会安装包内的 ShellCrash 1.9.4，无需先手动装框架。先停止旧 SSR，准备好可用的 sing-box 节点 JSON，命名为 `nodes.json`，放在解压后的安装包文件夹。
 
 ## 1. 在电脑上取回国内 IP 表
 
-以下命令在解压后的文件夹执行：
+以下命令在解压后的文件夹执行。已有国内规则时从路由器取回：
 
 ```sh
 scp -O admin@192.168.1.1:/etc/storage/chinadns/chnroute.txt ./chnroute.txt
+```
+
+新设备没有该文件时，直接用包内规则：
+
+```sh
+cp vendor/ShellCrash-1.9.4/cn_ip.txt ./chnroute.txt
 ```
 
 ## 2. 在电脑上生成配置
@@ -26,7 +32,7 @@ python3 tools/prepare_profile.py --input nodes.json --output config.private.json
 把下载的 `.tar.gz` 放在当前文件夹，然后执行：
 
 ```sh
-scp -O padavan-shellcrash-panel-0.1.1.tar.gz config.private.json panel-secret.private admin@192.168.1.1:/tmp/
+scp -O padavan-shellcrash-panel-0.1.2.tar.gz config.private.json panel-secret.private admin@192.168.1.1:/tmp/
 ssh admin@192.168.1.1
 ```
 
@@ -36,8 +42,8 @@ SSH 登录后的命令：
 
 ```sh
 cd /tmp
-tar -xzf padavan-shellcrash-panel-0.1.1.tar.gz
-cd padavan-shellcrash-panel-0.1.1
+tar -xzf padavan-shellcrash-panel-0.1.2.tar.gz
+cd padavan-shellcrash-panel-0.1.2
 sh install.sh --check --profile /tmp/config.private.json
 sh install.sh --install --profile /tmp/config.private.json --secret-file /tmp/panel-secret.private
 ```

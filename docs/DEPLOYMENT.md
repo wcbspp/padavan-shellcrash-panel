@@ -5,21 +5,21 @@
 ## 安装前需要什么
 
 - 路由器是 K2P / MT7621，运行 Padavan。
-- ShellCrash 1.9.4 已装在 `/etc/storage/ShellCrash`，配置为 sing-box。
-- 已有国内 IP 表 `/etc/storage/chinadns/chnroute.txt`。如果之前装过 SSR，一般已有；安装助手会检查。
+- 不需要预装 ShellCrash。安装包带有 1.9.4 基础脚本；已有安装则需是 1.9.4、配置为 sing-box。
+- 国内 IP 表会优先沿用 `/etc/storage/chinadns/chnroute.txt`；新设备缺少时使用包内规则。
 - 旧 SSR 已停止，SSH 已开启。管理后台通常仍用原来的地址和密码。
 - 电脑能运行 Python 3.9+ 和 `ssh`。Windows 请在 WSL 中运行。
 
-如果还没装 ShellCrash，先到 [官方项目](https://github.com/juewuy/ShellCrash) 安装并完成初始配置；本安装包不包含 ShellCrash 主程序。
+首次安装需要提供 AnyTLS 或 sing-box JSON 订阅。基础框架从包内安装，不用路由器另去 GitHub 下载；sing-box 内核仍通过下载源获取。
 
 ## 安装助手做了什么
 
-1. 通过 SSH 读取路由器已有的节点配置和国内 IP 表。
-2. 如果输入了订阅链接，在电脑上下载订阅；否则沿用已有节点。
+1. 通过 SSH 检查路由器已有的节点配置和国内 IP 表，缺少规则时选用包内数据。
+2. 首次安装在电脑上下载订阅；已有节点时可以留空，沿用原节点。
 3. 生成节点分组和随机面板密钥，上传到路由器的临时目录。
 4. 检查固件、ShellCrash 版本、旧 SSR 开关和自定义启动钩子。
-5. 把安装前 ShellCrash 配置和开机脚本备份到电脑。
-6. 安装面板，启动内核；通过验证后保存到 Flash。
+5. 把安装前 ShellCrash 配置、开机脚本和已有国内 IP 表备份到电脑；新设备会记录原来没有 ShellCrash。
+6. 新设备先安装包内 ShellCrash，再装面板和开机启动脚本，启动内核；通过验证后保存到 Flash。
 7. 删除此次上传的临时配置，关闭 SSH 复用连接。
 
 连接用的 SSH 密码由系统 `ssh` 处理，助手不保存它。订阅链接输入时不会回显，安装完成后会保存在路由器，供网页更新使用。电脑上的备份包含私人节点和密码，不要公开上传。
@@ -32,7 +32,7 @@
 python3 tools/deploy.py --check-only
 ```
 
-这会读取现有配置，在 `/tmp` 上传临时检查文件，然后删除；不会安装面板或修改 ShellCrash 设置。
+这会读取现有配置，在 `/tmp` 上传临时检查文件，然后删除；不会安装框架、面板或修改 Storage。新设备使用检查占位配置，不会启动代理。
 
 ## 常见提示
 
@@ -40,7 +40,7 @@ python3 tools/deploy.py --check-only
 | --- | --- |
 | 找不到 ssh | 安装 OpenSSH；Windows 使用 WSL |
 | SSH 连接失败或拒绝连接 | 检查路由器地址、SSH 开关、端口和电脑是否在同一局域网 |
-| 缺少配置或国内规则 | 先完成 ShellCrash 初始配置，确认国内 IP 表存在 |
+| 首次安装需要订阅链接 | 输入有效的 AnyTLS 或 sing-box JSON 订阅；已有 ShellCrash 但没导入节点时也需要填写 |
 | 请先在旧 SSR 插件中停止服务 | 关闭「科学上网」里的运行开关后再安装 |
 | 已有自定义钩子 | 先备份并检查 `task/bfstart`、`task/afstart`；需要人工合并，别直接删除 |
 | 已有本项目运行覆盖 | 这台路由器已经装过面板，不能用首次安装器重复覆盖 |

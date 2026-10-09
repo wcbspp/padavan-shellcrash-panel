@@ -50,7 +50,7 @@ def subscription_nodes(raw):
 
 
 def read_snapshot(raw):
-    expected = ['ShellCrash/jsons/config.json', 'chinadns/chnroute.txt']
+    expected = ['started_script.sh', 'ShellCrash/jsons/config.json', 'chinadns/chnroute.txt']
     if len(raw) > 3 * 1024 * 1024:
         raise ValueError('路由器配置超过大小限制')
     with tarfile.open(fileobj=io.BytesIO(raw), mode='r:gz') as archive:
@@ -59,17 +59,19 @@ def read_snapshot(raw):
             try:
                 member = archive.getmember(name)
             except KeyError:
-                raise ValueError('路由器缺少配置或国内规则，请先配置 ShellCrash') from None
+                continue
             if not member.isfile() or member.size > MAX_INPUT:
                 raise ValueError('路由器配置文件不符合要求')
             result[name] = archive.extractfile(member).read()
+    if not result:
+        raise ValueError('没有取得路由器配置')
     return result
 
 
 def make_upload(profile, secret, subscription=None):
     stream = io.BytesIO()
     with tarfile.open(fileobj=stream, mode='w:gz') as archive:
-        for entry in ['install.sh', 'uninstall.sh', 'payload', 'examples']:
+        for entry in ['install.sh', 'uninstall.sh', 'backup.sh', 'restore_storage.sh', 'payload', 'examples', 'vendor']:
             path = ROOT / entry
             files = [path] if path.is_file() else sorted(p for p in path.rglob('*') if p.is_file())
             for p in files:
@@ -122,14 +124,16 @@ def main():
         changed = False
         connected = False
         try:
-            print('\n1/4 连接路由器，读取现有节点与国内规则。SSH 密码由 ssh 自己询问。')
-            raw = remote('tar -czf - -C /etc/storage ShellCrash/jsons/config.json chinadns/chnroute.txt', capture=True)
+            print('\n1/4 连接路由器。SSH 密码由 ssh 自己询问。')
+            raw = remote('set -- started_script.sh; [ ! -f /etc/storage/ShellCrash/jsons/config.json ] || set -- "$@" ShellCrash/jsons/config.json; [ ! -f /etc/storage/chinadns/chnroute.txt ] || set -- "$@" chinadns/chnroute.txt; tar -czf - -C /etc/storage "$@"', capture=True)
             connected = True
             snapshot = read_snapshot(raw)
-            source = snapshot['ShellCrash/jsons/config.json']
+            source = snapshot.get('ShellCrash/jsons/config.json')
+            cn = snapshot.get('chinadns/chnroute.txt') or (ROOT / 'vendor/ShellCrash-1.9.4/cn_ip.txt').read_bytes()
             subscription = None
             if not args.check_only:
-                url = getpass.getpass('订阅链接（不回显；回车沿用现有节点）：').strip()
+                prompt = '订阅链接（不回显；回车沿用现有节点）：' if source else '首次安装，请输入订阅链接（不回显）：'
+                url = getpass.getpass(prompt).strip()
                 if url:
                     if urllib.parse.urlsplit(url).scheme != 'https':
                         raise ValueError('安装助手仅接受 HTTPS 订阅链接')
@@ -145,8 +149,13 @@ def main():
                         raise ValueError('订阅下载失败，请检查链接和电脑网络') from None
                     if len(source) > MAX_INPUT:
                         raise ValueError('订阅超过 512 KiB')
+            if source is None:
+                if not args.check_only:
+                    raise ValueError('首次安装需要 AnyTLS 或 sing-box JSON 订阅链接')
+                # This profile is used only for preflight and never started.
+                source = json.dumps({'outbounds': [{'type': 'anytls', 'tag': '检查占位节点', 'server': 'probe.invalid', 'server_port': 443, 'password': 'check-only'}]}).encode()
             (private / 'nodes.json').write_text(json.dumps({'outbounds': subscription_nodes(source)}, ensure_ascii=False))
-            (private / 'cn.txt').write_bytes(snapshot['chinadns/chnroute.txt'])
+            (private / 'cn.txt').write_bytes(cn)
             profile, secret = private / 'config.json', private / 'secret'
             subprocess.run([sys.executable, str(ROOT / 'tools/prepare_profile.py'), '--input', str(private / 'nodes.json'),
                             '--output', str(profile), '--lan-ip', host, '--secret-file', str(secret),
@@ -163,7 +172,7 @@ def main():
             print('3/4 把安装前配置备份到电脑。')
             with backup.open('xb') as output:
                 backup.chmod(0o600)
-                result = subprocess.run([*ssh, 'tar -czf - -C /etc/storage ShellCrash started_script.sh'], stdout=output)
+                result = subprocess.run([*ssh, 'sh ' + quoted + '/package/backup.sh -'], stdout=output)
             if result.returncode:
                 raise RuntimeError('备份下载失败，未开始安装')
             with tarfile.open(backup) as archive:

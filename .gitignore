@@ -13,3 +13,6 @@ __pycache__/
 *.private*
 nodes.json
 panel-secret*
+
+# Verified upstream source archive, distributed with its corresponding source.
+!vendor/ShellCrash-1.9.4.tar.gz

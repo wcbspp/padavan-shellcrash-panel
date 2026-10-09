@@ -1,6 +1,7 @@
 
 [ -z "$CRASHDIR" ] && CRASHDIR=$(cd "$(dirname "$0")"/.. && pwd)
 if [ "$1" = shellcrash ]; then
+ [ ! -d /tmp/padavan-panel-install.lock ] || exit 0
  [ -f "$CRASHDIR/configs/panel-disabled" ] && exit 0
  admin_owner=$(cat /tmp/sc-admin/operation.lock/owner 2>/dev/null)
  [ -z "$admin_owner" ] || { kill -0 "$admin_owner" 2>/dev/null && exit 0; }

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Package only the public source allowlist; exclude runtime configuration."""
-import hashlib,tarfile,zipfile
+import hashlib,json,shutil,tarfile,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 version=(ROOT/'VERSION').read_text().strip()
 name=f'padavan-shellcrash-panel-{version}'
 dist=ROOT/'dist';dist.mkdir(exist_ok=True)
 files=[]
-for entry in ['README.md','NOTICE.md','LICENSE','VERSION','install.sh','uninstall.sh','payload','examples','docs','tools','tests']:
+for entry in ['README.md','NOTICE.md','LICENSE','VERSION','install.sh','uninstall.sh','backup.sh','restore_storage.sh','vendor','payload','examples','docs','tools','tests']:
  p=ROOT/entry
  files += [p] if p.is_file() else [f for f in p.rglob('*') if f.is_file() and '__pycache__' not in f.parts]
 files=sorted(files)
@@ -23,6 +23,10 @@ with tarfile.open(dist/(name+'.tar.gz'),'w:gz') as archive:
 with zipfile.ZipFile(dist/(name+'.zip'),'w',compression=zipfile.ZIP_DEFLATED) as archive:
  for f in files:archive.write(f,name+'/'+str(f.relative_to(ROOT)))
  archive.writestr(name+'/MANIFEST.sha256',manifest)
-assets=[dist/(name+'.tar.gz'),dist/(name+'.zip')]
+upstream=ROOT/'vendor/ShellCrash-1.9.4.tar.gz'
+metadata=json.loads((ROOT/'vendor/UPSTREAM.json').read_text())
+if hashlib.sha256(upstream.read_bytes()).hexdigest()!=metadata['archive_sha256']:raise SystemExit('Upstream archive hash mismatch')
+shutil.copyfile(upstream,dist/upstream.name)
+assets=[dist/(name+'.tar.gz'),dist/(name+'.zip'),dist/upstream.name]
 (dist/'SHA256SUMS').write_text(''.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in assets))
 print('\n'.join(str(p) for p in assets))

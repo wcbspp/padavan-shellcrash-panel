@@ -1,129 +1,90 @@
 # K2P / Padavan · ShellCrash 可视化管理面板
 
-把 ShellCrash 接进 Padavan 后台：切节点、更新订阅、改 DNS、看日志，都可以在网页里操作。
+把 [ShellCrash](https://github.com/juewuy/ShellCrash) 接入 Padavan 管理页，在网页里切换节点、更新订阅、设置 DNS、更新内核和规则，查看内存、异常与日志。
 
-适用于 **K2P / MT7621 + Padavan**，使用 ShellCrash 1.9.4 和 sing-box mini 1.12.13。安装包已包含 ShellCrash 基础脚本；新设备会自动安装，已有安装会先检查版本。
+适用于 **K2P / MT7621 + Padavan**。当前使用 ShellCrash **1.9.4release** 和 sing-box mini **1.12.13**；实机固件为 `4.4.198.9-100_20220804`，其他 Padavan 分支暂未验证。
 
 ## 安装
 
-需要配套底层固件时，见 [K2P 16 MB 固件下载与验证](docs/FIRMWARE.md)。四个版本分别提供，包含本机正在使用的完整版和 K2P-USB 版；本批仅适用于 16 MB 闪存。
-
-### 1. 下载并解压到电脑
-
-[下载 v1.0.1 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.1/padavan-shellcrash-panel-1.0.1.zip)。电脑需要 Python 3.9 或更新版本、SSH；macOS / Linux 可以直接运行，Windows 使用 WSL。
-
-路由器先开启 SSH，在原「科学上网」页面关闭 SSR 的运行开关。电脑连到这台路由器的局域网。
-
-### 2. 在解压后的文件夹里打开终端
-
-只需执行这一条：
+1. [下载 v1.0.0 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.0/padavan-shellcrash-panel-1.0.0.zip)，解压到电脑。
+2. 开启路由器 SSH，在原“科学上网”页面关闭 SSR 运行开关。
+3. 电脑连接路由器局域网，在解压后的文件夹运行：
 
 ```sh
 python3 tools/deploy.py
 ```
 
-按提示填写：
+按提示填写路由器地址、SSH 用户名、端口、管理员密码和订阅。默认用户名为 `admin`、端口为 `22`，按设备实际设置修改。
 
-| 提示 | 填什么 |
+安装助手会生成配置、上传文件、保存安装前备份，然后部署 ShellCrash、面板和启动适配。电脑需要 Python 3.9+ 和 SSH；macOS / Linux 可直接使用，Windows 使用 WSL。
+
+安装完成后登录 Padavan，点击 **高级设置 → ShellCrash**。沿用路由器登录会话，无需单独输入面板密码。菜单未出现时刷新浏览器缓存。
+
+安装前备份以 `shellcrash-before-` 开头，保存在运行安装命令的目录。已有自定义启动钩子或重复安装时，助手会停止并提示；当前不提供自动升级已有面板的流程。
+
+[安装说明](docs/DEPLOYMENT.md) · [手动部署](docs/MANUAL_INSTALL.md) · [备份与卸载](docs/RECOVERY.md)
+
+## 页面预览
+
+左侧保留原“科学上网”入口，新增 ShellCrash 菜单。以下页面使用示例节点与状态。
+
+![节点管理](docs/assets/padavan-nodes.png)
+
+![网站检测](docs/assets/padavan-checks.png)
+
+![订阅、内核与镜像设置](docs/assets/padavan-subscription.png)
+
+## 面板功能
+
+| 页面 | 功能 |
 | --- | --- |
-| 路由器地址 | 自己的 LAN 网关，例如 `192.168.1.1` |
-| SSH 用户名 | 默认 `admin`，按实际情况修改 |
-| SSH 端口 | 默认 `22`，没改过就直接回车 |
-| SSH 密码 | 路由器管理员密码；输入时不会显示 |
-| 订阅链接 | 首次安装必填；已有节点时直接回车即可沿用 |
+| 节点 | 地区分组、搜索、协议标识、切换和保存节点；自动测速取三次成功结果中的最短值 |
+| 检测 | 国内直连与国外代理网站的 HTTPS 检测 |
+| 配置 | 更新订阅、检查与更新内核、更新 ShellCrash 正式版、设置自定义镜像 |
+| 规则、DNS | 国内 IPv4 网段更新、Mix / 真实 DNS、Fake IP 例外名单 |
+| 监控、日志 | 内存趋势、清理阈值、安全清理、异常时间与原因、日志查看和清空 |
 
-安装助手会自动生成配置、上传文件、检查环境、把安装前备份下载到电脑，再安装 ShellCrash、面板和开机启动脚本，最后检查服务。第一次 SSH 连接时，终端可能会询问是否信任这台路由器。
+首页显示当前内核版本、开机启动、启动来源与守护状态。K2P 使用 ShellCrash 原生每分钟守护，主动停止后不会被守护重新拉起。
 
-### 3. 打开路由器后台
+## 与官方 ShellCrash 的关系
 
-登录后点击 **高级设置 → ShellCrash**。如果没看到菜单，刷新浏览器缓存。安装时输入的订阅链接会保存在面板中，以后点「配置 → 更新订阅」即可。
+ShellCrash 提供终端菜单、订阅获取与转换、内核下载和启动入口。面板调用这些功能，并通过 Padavan 适配脚本执行配置校验、Storage 保存和状态检查。sing-box 实际处理代理流量。
 
-安装前备份保存在你运行命令的文件夹，文件名以 `shellcrash-before-` 开头。请留好，恢复方法见 [备份与卸载](docs/RECOVERY.md)。
+本项目的 K2P 适配包括：
 
-遇到错误时看终端最后一条提示；常见问题见 [安装说明](docs/DEPLOYMENT.md)。
+- 将面板接入原厂后台，保留原菜单，复用登录权限。
+- 按地区整理节点；更新订阅时保留现有 DNS 与分流设置。
+- 适配 Padavan 启动钩子和原生每分钟守护，检查代理进程及管理接口。
+- 内核在 RAM 中运行，配置保存在 Storage；恢复下载与配置保存相互独立。
+- 低内存时暂缓耗资源的管理操作，限制日志和临时文件大小。
+- 配置与内核校验、更新前备份、失败回退、异常记录和安全清理。
 
-## 包里有什么
+安装包附带[官方 ShellCrash 1.9.4 原包](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)和适配脚本，来源与校验值保存在 `vendor/`。也可[单独下载原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.0/ShellCrash-1.9.4.tar.gz)。内核由安装脚本从工具源获取，不包含在面板源码包中。
 
-- 官方 ShellCrash 1.9.4 基础脚本与原始压缩包。
-- 管理面板、后端脚本、开机启动和异常恢复脚本。
-- 电脑安装助手、备份和卸载工具。
+## 订阅更新
 
-如果只需要基础包，可以下载 [ShellCrash 1.9.4 原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.1/ShellCrash-1.9.4.tar.gz)。它来自 [官方 1.9.4 发布](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)，源码、来源与校验值保留在 `vendor/`。
+默认调用 ShellCrash 从填写的订阅地址直接下载，失败时尝试面板兼容下载。选择转换下载时，可指定 ShellCrash 列表中的服务，并选择失败后依次尝试其他服务。
 
-sing-box 内核不打进基础包，安装和重启时按下载源获取；自定义镜像设置见下方说明。
+转换前先预检接口，不携带订阅地址；通过后才发送订阅。**转换服务来自互联网，安全性请自行斟酌。** 失败轮询可能向多家服务发送订阅地址；预检通过不保证转换成功。直接下载只联系填写的订阅地址。
 
-## 界面
+下载内容先放入临时目录，面板整理节点，生成 sing-box JSON 配置。通过内核校验后保存并加载；失败保留或恢复原配置。错误提示显示本次订阅地址、出错接口和尝试记录。
 
-完整 Padavan 后台，左侧保留「科学上网」，新增「ShellCrash」。截图中的节点、延迟和运行状态是演示数据。
+面板支持 AnyTLS、Base64、sing-box JSON，以及 origin/plain、origin/http_simple 的兼容 SSR 链接。兼容 SSR 按 SS（带所需混淆）运行，协议标识显示 SS；其他 SSR 不适用于当前 sing-box，界面会提示未导入数量。Clash YAML 和其他未支持的链接格式需先转换，最终协议仍须当前 mini 内核支持。
 
-![Padavan 后台中的 ShellCrash 节点管理](docs/assets/padavan-nodes.png)
+## 重启、镜像与 DNS
 
-![Padavan 后台中的网站检测](docs/assets/padavan-checks.png)
+K2P 默认没有持久内核包，重启需重新下载；节点、订阅、DNS 和规则保存在 Storage，不会被内核下载覆盖。有可用外部存储时可设置持久内核包，恢复顺序为 **本地包 → 自定义镜像 → ShellCrash 工具源**。启动恢复使用已安装版本，不自动追新。
 
-## 功能
+自定义镜像可选，在“配置”页维护；配置专用 SSH 上传密钥后，内核和 IP 规则更新可同步到镜像。同步失败单独提示，可重试，不撤回已生效的本地更新。[镜像设置](docs/MIRRORS.md)
 
-- 按地区查看具体节点、切换节点、自动测速并保存选择。
-- 检测百度、腾讯、Google、YouTube 等网站是否能访问。
-- 更新订阅，启动、停止或重启服务。
-- 修改 DNS 模式、Fake IP 例外名单，更新国内 IP 规则。
-- 查看和清空日志，检查与更新内核。
-- 在“监控”页查看可用内存、趋势与异常时间，刷新状态或安全清理临时文件；低内存时暂停耗资源的管理操作。
+国内 IPv4 默认表随安装包提供，不依赖旧 SSR 插件。国内域名使用 cn.srs。Mix 对国内域名与例外名单返回真实地址，其余返回 Fake IP；真实地址仍按分流规则决定直连或代理。当前普通 UDP 直连，IPv6 未启用。[运行方式与限制](docs/ARCHITECTURE.md)
 
-程序在 RAM 中运行，重启会重新下载；节点、订阅和 DNS 设置保存在路由器 Storage 中，不会随程序下载而重置。
+## 固件下载
 
-**自定义镜像可选。** 不配置时使用公共下载源；配置后按「自定义镜像 → 公共源」的顺序直连下载，启动下载不依赖代理。公共源直连不稳定时，可以把对应内核压缩包放到自己的服务器。镜像文件必须与当前版本的校验值一致，更新内核后也要同步镜像。设置方法见 [自定义下载镜像](docs/MIRRORS.md)。
+需要恢复或更换底层固件时，见 [K2P 16 MB Padavan 固件](docs/FIRMWARE.md)。这些第三方固件与面板安装包分开发布，仅适用于 **16 MB 闪存 K2P**，未内置本项目面板；刷机前先保存设备配置。
 
-普通 UDP 直连，AAAA 查询拒绝。具体行为见 [运行方式与限制](docs/ARCHITECTURE.md)。
+## 测试与许可
 
-## 版本与兼容性
+实机测试覆盖订阅更新、DNS 例外、国内分流、服务启停和重启恢复。安装助手通过首次安装、失败回退及恢复测试，尚未在另一台干净设备上完整安装。[测试记录](docs/VALIDATION.md) · [变更记录](CHANGELOG.md)
 
-目前是实验版。原部署已在 K2P、Padavan `4.4.198.9-100_20220804` 上验证；整理后的安装助手已通过首次安装、失败回滚和恢复配置的模拟测试，还没有在另一台干净路由器上完整验证。其他 Padavan 分支不保证兼容。
-
-订阅支持 AnyTLS 链接、Base64、sing-box JSON，以及 origin/plain 或 origin/http_simple 的兼容 SSR 链接。兼容 SSR 转为 SS（需要时带 HTTP 混淆），节点标识显示实际运行协议；其他 SSR 不适用于 sing-box，界面会提示跳过数量。Clash YAML 和其他未支持的链接格式需先转换。JSON 中的协议仍需当前 mini 内核支持。
-
-已有自定义启动钩子时，安装助手会停止并提示，不会覆盖。已经装过本面板的路由器也会拒绝重复安装；本版本没有自动升级功能。需要手动部署时看 [手动安装](docs/MANUAL_INSTALL.md)。
-
-## 开发
-
-```sh
-python3 tests/test_project.py
-python3 tests/test_mirror.py
-python3 tests/test_rules_paths.py
-python3 tools/build_release.py
-```
-
-可选的 GitHub Actions 配置在 `docs/ci-example.yml`。
-
-## 许可
-
-GPL-3.0-only，基于 [ShellCrash](https://github.com/juewuy/ShellCrash)。版权和图标来源见 [NOTICE](NOTICE.md)。发布包不含私人订阅、密码、ZeroTier 身份或 sing-box 内核二进制。
-
-自定义镜像可在“配置”页维护，显示公共适配源与镜像版本；配置专用 SSH 上传密钥后，内核和 IP 规则更新会自动同步镜像。见 [镜像配置](docs/MIRRORS.md)。
-
-![订阅、内核和镜像设置（节点与地址为示例）](docs/assets/padavan-subscription.png)
-
-国内 IP 默认表随安装包提供，不依赖旧 SSR 的 chinadns 目录。首次导入已有规则，此后使用 ShellCrash 自己的持久化文件；前台可手动更新，失败保留原表。
-
-版本变更见 [CHANGELOG.md](CHANGELOG.md)
-
-## 1.0.1 更新
-
-节点顺序采样三次，显示成功样本的最短时间；首个请求可能包含握手。配置页可检查和更新官方 stable 正式版 ShellCrash 工具。工具更新保留本项目适配及运行配置，不重启其他服务；同版不替换，上游适配依赖发生变化时拒绝覆盖。
-
-开机只恢复已安装内核版本，不查询新版本。K2P 默认内核包位于内存，重启需下载；有可用外部存储时可配置持久化 archive。配置仍保存在 Storage。镜像上传失败单独提示待同步，可手动重试，已验证的内核不会仅因同步失败而撤回。
-
-验证与限制见[变更记录](CHANGELOG.md)。当前正式工具仍为 1.9.4release，新正式版替换及失败回退通过离线夹具验证。
-
-## ShellCrash 订阅与保护机制
-
-配置页默认调用 ShellCrash 从订阅地址直接下载，失败时保留面板直接下载作为兼容兜底。选择转换下载时，可选择 ShellCrash 列表中的服务，并决定是否失败后依次尝试其他服务。
-
-转换前先用不含订阅地址的请求预检接口，只有通过才发送订阅；预检通过不保证转换成功。转换服务来自互联网，安全性请自行斟酌。启用轮询可能向多家服务发送订阅地址。直接下载只联系填写的订阅地址，不发送给第三方转换服务。失败提示显示本次订阅地址、出错接口和最近尝试记录，请勿将包含私人订阅的截图公开。
-
-订阅先在临时目录生成，通过内核校验后再替换；失败保留或恢复当前配置。内存阈值、安全清理、备份回退、异常与恢复记录继续保留。启停通过 ShellCrash 和 Padavan 启动适配执行，并核对实际进程及接口状态。
-
-### 订阅更新如何工作
-
-默认调用 ShellCrash，从填写的订阅地址获取内容；选择转换服务时，订阅地址会发送给面板所选的 ShellCrash 转换服务。也可选择原面板的兼容下载方式。
-
-下载结果放入临时目录，面板整理节点、保留当前 DNS 和分流规则，由运行内核校验，成功后保存并加载；失败保留当前配置。转换暂以 sing-box JSON 为中间格式，随后生成当前内核的运行配置：sing-box 使用 JSON，Mihomo 使用 YAML。仅 Mihomo 支持的字段或协议可能无法完整保留；这不是工具 providers 本地生成流程。
+GPL-3.0-only；组件版权和图标来源见 [NOTICE](NOTICE.md)。发布包不含私人订阅、密码、ZeroTier 身份或运行配置。

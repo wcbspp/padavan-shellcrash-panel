@@ -6,7 +6,7 @@
 
 ## 安装
 
-1. [下载 v1.0.0 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.0/padavan-shellcrash-panel-1.0.0.zip)，解压到电脑。
+1. [下载 v1.0.1 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.1/padavan-shellcrash-panel-1.0.1.zip)，解压到电脑。
 2. 开启路由器 SSH，在原“科学上网”页面关闭 SSR 运行开关。
 3. 电脑连接路由器局域网，在解压后的文件夹运行：
 
@@ -59,7 +59,7 @@ ShellCrash 提供终端菜单、订阅获取与转换、内核下载和启动入
 - 低内存时暂缓耗资源的管理操作，限制日志和临时文件大小。
 - 配置与内核校验、更新前备份、失败回退、异常记录和安全清理。
 
-安装包附带[官方 ShellCrash 1.9.4 原包](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)和适配脚本，来源与校验值保存在 `vendor/`。也可[单独下载原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.0/ShellCrash-1.9.4.tar.gz)。内核由安装脚本从工具源获取，不包含在面板源码包中。
+安装包附带[官方 ShellCrash 1.9.4 原包](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)和适配脚本，来源与校验值保存在 `vendor/`。也可[单独下载原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.1/ShellCrash-1.9.4.tar.gz)。内核由安装脚本从工具源获取，不包含在面板源码包中。
 
 ## 订阅更新
 
@@ -70,6 +70,8 @@ ShellCrash 提供终端菜单、订阅获取与转换、内核下载和启动入
 下载内容先放入临时目录，面板整理节点，生成 sing-box JSON 配置。通过内核校验后保存并加载；失败保留或恢复原配置。错误提示显示本次订阅地址、出错接口和尝试记录。
 
 面板支持 AnyTLS、Base64、sing-box JSON，以及 origin/plain、origin/http_simple 的兼容 SSR 链接。兼容 SSR 按 SS（带所需混淆）运行，协议标识显示 SS；其他 SSR 不适用于当前 sing-box，界面会提示未导入数量。Clash YAML 和其他未支持的链接格式需先转换，最终协议仍须当前 mini 内核支持。
+
+当前订阅导入只更新节点，不导入订阅文件中的策略组、分流规则或 rule-providers。已有 DNS 与分流设置由面板保留；转换服务生成的完整规则目前不会生效。内核本身支持更复杂的规则，但本面板尚未提供完整配置导入与编辑。
 
 ## 重启、镜像与 DNS
 

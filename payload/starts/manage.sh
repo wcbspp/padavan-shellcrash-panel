@@ -28,6 +28,11 @@ status(){
  . "$C/starts/resource_health.sh"
  resource_read
  pid=$(pidof CrashCore | awk '{print $1}'); running=false; [ -n "$pid" ] && running=true
+ core_uptime=null
+ if [ -n "$pid" ]; then
+  core_uptime=$(awk 'NR==FNR {now=$1;next} {sub(/^[0-9]+ \(.*\) /, ""); if ($20 ~ /^[0-9]+$/ && $20/100<=now) {printf "%d", now-$20/100;ok=1}} END {if (!ok) printf "null"}' /proc/uptime "/proc/$pid/stat" 2>/dev/null)
+  [ -n "$core_uptime" ] || core_uptime=null
+ fi
  rss=0; [ -z "$pid" ] || rss=$(awk '/^VmRSS:/{print $2}' "/proc/$pid/status")
  mem=$(awk '/^MemFree:/{print $2}' /proc/meminfo)
  mode=true; [ -f "$C/configs/panel-disabled" ] && mode=false
@@ -56,6 +61,7 @@ status(){
  tool_version=$(tr -d '\r\n' < "$C/version");printf '%s' "$tool_version" | grep -Eq '^1\.[0-9]+\.[0-9]+(release|beta[0-9]+)$' || tool_version=unknown
  tool_check='{}';[ ! -s "$D/tool-check.json" ] || tool_check=$(cat "$D/tool-check.json")
  printf '{"main_group":"%s","tool_version":"%s","tool_check":%s,"local_archive":false,"mirror_pending_b64":"%s",' "$PANEL_MAIN_GROUP" "$tool_version" "$tool_check" "$(cat "$C/configs/mirror.pending" 2>/dev/null | base64 | tr -d '\n')"
+ printf '"core_uptime_seconds":%s,' "$core_uptime"
  core_check='{}'; [ ! -s "$D/core-check.json" ] || core_check=$(cat "$D/core-check.json")
  rules_count=$(head -1 "$C/configs/rules.meta" 2>/dev/null); case "$rules_count" in ''|*[!0-9]*) rules_count=4305;; esac
  dns_mode=$(sed -n 's/^dns_mod=//p' "$C/configs/ShellCrash.cfg" | head -1); case "$dns_mode" in mix|fake-ip|redir_host) :;; *) dns_mode=unknown;; esac

@@ -6,7 +6,7 @@
 
 ## 安装
 
-1. [下载 v1.0.1 安装包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.1/padavan-shellcrash-panel-1.0.1.zip)，解压到电脑。
+1. [下载 v1.0.2 安装包](https://github.com/wcbspp/K2P-Padavan-shellcrash-panel/releases/download/v1.0.2/padavan-shellcrash-panel-1.0.2.zip)，解压到电脑。
 2. 开启路由器 SSH，在原“科学上网”页面关闭 SSR 运行开关。
 3. 电脑连接路由器局域网，在解压后的文件夹运行：
 
@@ -41,10 +41,10 @@ python3 tools/deploy.py
 | 节点 | 地区分组、搜索、协议标识、切换和保存节点；自动测速取三次成功结果中的最短值 |
 | 检测 | 国内直连与国外代理网站的 HTTPS 检测 |
 | 配置 | 更新订阅、检查与更新内核、更新 ShellCrash 正式版、设置自定义镜像 |
-| 规则、DNS | 国内 IPv4 网段更新、Mix / 真实 DNS、Fake IP 例外名单 |
+| 规则、DNS | 运行规则 / 策略组 / 连接查询、国内 IPv4 更新、Mix / 真实 DNS 与 Fake IP 例外 |
 | 监控、日志 | 内存趋势、清理阈值、安全清理、异常时间与原因、日志查看和清空 |
 
-首页显示当前内核版本、开机启动、启动来源与守护状态。K2P 使用 ShellCrash 原生每分钟守护，主动停止后不会被守护重新拉起。
+首页直接显示当前内核版本与运行时长、内存、开机启动与守护状态；启动来源在配置页查看。K2P 使用 ShellCrash 原生每分钟守护，主动停止后不会被守护重新拉起。
 
 ## 与官方 ShellCrash 的关系
 
@@ -59,7 +59,7 @@ ShellCrash 提供终端菜单、订阅获取与转换、内核下载和启动入
 - 低内存时暂缓耗资源的管理操作，限制日志和临时文件大小。
 - 配置与内核校验、更新前备份、失败回退、异常记录和安全清理。
 
-安装包附带[官方 ShellCrash 1.9.4 原包](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)和适配脚本，来源与校验值保存在 `vendor/`。也可[单独下载原包](https://github.com/wcbspp/padavan-shellcrash-panel/releases/download/v1.0.1/ShellCrash-1.9.4.tar.gz)。内核由安装脚本从工具源获取，不包含在面板源码包中。
+安装包附带[官方 ShellCrash 1.9.4 原包](https://github.com/juewuy/ShellCrash/releases/tag/1.9.4)和适配脚本，来源与校验值保存在 `vendor/`。也可[单独下载原包](https://github.com/wcbspp/K2P-Padavan-shellcrash-panel/releases/download/v1.0.2/ShellCrash-1.9.4.tar.gz)。内核由安装脚本从工具源获取，不包含在面板源码包中。
 
 ## 订阅更新
 
@@ -90,3 +90,5 @@ K2P 默认没有持久内核包，重启需重新下载；节点、订阅、DNS 
 实机测试覆盖订阅更新、DNS 例外、国内分流、服务启停和重启恢复。安装助手通过首次安装、失败回退及恢复测试，尚未在另一台干净设备上完整安装。[测试记录](docs/VALIDATION.md) · [变更记录](CHANGELOG.md)
 
 GPL-3.0-only；组件版权和图标来源见 [NOTICE](NOTICE.md)。发布包不含私人订阅、密码、ZeroTier 身份或运行配置。
+
+规则页可筛选、分页查看内核实际加载的规则、策略组和连接。查询按需执行，不增加后台轮询。[轻量页面验证记录](docs/轻量页面验证.md)
